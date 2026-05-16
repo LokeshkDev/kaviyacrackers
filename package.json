@@ -1,0 +1,17 @@
+{
+  "name": "kavya-crackers-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kaviya Crackers - Full Stack E-Commerce Platform",
+  "scripts": {
+    "dev:server": "npm run dev --prefix ./server",
+    "dev:client": "npm run dev --prefix ./client",
+    "dev": "concurrently -n api,vite -c blue,magenta \"npm run dev --prefix ./server\" \"npm run dev --prefix ./client\"",
+    "install:server": "npm install --prefix ./server",
+    "install:client": "npm install --prefix ./client",
+    "install:all": "npm run install:server && npm run install:client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

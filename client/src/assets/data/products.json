@@ -1,0 +1,56 @@
+[
+    {
+        "id": 1,
+        "category": "Sparklers",
+        "name": "7cm Electric Sparklers",
+        "content": "10 Pcs",
+        "rate": 50,
+        "originalRate": 75,
+        "image": "assets/img/sparklers.png"
+    },
+    {
+        "id": 2,
+        "category": "Sparklers",
+        "name": "10cm Color Sparklers",
+        "content": "10 Pcs",
+        "rate": 120,
+        "originalRate": 180,
+        "image": "assets/img/sparklers.png"
+    },
+    {
+        "id": 3,
+        "category": "Flower Pots",
+        "name": "Flower Pots Small",
+        "content": "10 Pcs",
+        "rate": 150,
+        "originalRate": 220,
+        "image": "assets/img/flower-pots.png"
+    },
+    {
+        "id": 4,
+        "category": "Flower Pots",
+        "name": "Flower Pots Special",
+        "content": "10 Pcs",
+        "rate": 300,
+        "originalRate": 450,
+        "image": "assets/img/flower-pots.png"
+    },
+    {
+        "id": 5,
+        "category": "Rockets",
+        "name": "Baby Rockets",
+        "content": "10 Pcs",
+        "rate": 180,
+        "originalRate": 250,
+        "image": "assets/img/rockets.png"
+    },
+    {
+        "id": 6,
+        "category": "Ground Chakkars",
+        "name": "Ground Chakkars Normal",
+        "content": "10 Pcs",
+        "rate": 80,
+        "originalRate": 120,
+        "image": "assets/img/chakkars.png"
+    }
+]
