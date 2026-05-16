@@ -71,7 +71,7 @@ body {
 /* Top Marquee */
 .top-marquee {
     width: 100%;
-    z-index: 1031;
+    z-index: 1001;
     height: var(--promo-marquee-height);
     background: linear-gradient(90deg, #1A1A1A, #FF7A00, #1A1A1A);
     color: #fff;
@@ -79,6 +79,7 @@ body {
     display: flex;
     align-items: center;
     overflow: hidden;
+    position: relative;
 }
 
 .marquee-track {
@@ -86,11 +87,12 @@ body {
     align-items: center;
     width: max-content;
     animation: marqueeScroll 28s linear infinite;
+    will-change: transform;
 }
 
 .marquee-track span {
     padding: 0 2rem;
-    font-size: 0.95rem;
+    font-size: 0.85rem; /* Slightly smaller for mobile */
     font-weight: 700;
     white-space: nowrap;
     display: inline-flex;
@@ -221,6 +223,21 @@ body {
     z-index: -1;
 }
 
+/* Custom Typography for Mobile */
+.extra-small {
+    font-size: 0.65rem !important;
+}
+
+.fs-custom-mobile {
+    font-size: 0.8rem !important;
+}
+
+@media (min-width: 768px) {
+    .fs-custom-mobile {
+        font-size: 1rem !important;
+    }
+}
+
 /* Shop Table Styling - MOBILE OPTIMIZATION */
 .shop-table th,
 .shop-table td {
@@ -228,60 +245,74 @@ body {
 }
 
 @media (max-width: 575.98px) {
+    .shop-table {
+        table-layout: auto !important;
+        width: 100% !important;
+    }
     .shop-table th {
-        font-size: 0.65rem !important;
-        padding: 0.5rem 0.25rem !important;
+        font-size: 0.6rem !important;
+        padding: 0.5rem 0.15rem !important;
+        white-space: nowrap;
     }
 
     .shop-table td {
-        font-size: 0.75rem !important;
-        padding: 0.5rem 0.25rem !important;
+        font-size: 0.7rem !important;
+        padding: 0.5rem 0.15rem !important;
     }
 
     .col-img {
-        width: 45px !important;
+        display: none !important;
     }
 
     .col-rate {
-        width: 75px !important;
+        width: 62px !important;
+        min-width: 62px !important;
     }
 
     .col-qty {
-        width: 90px !important;
+        width: 82px !important;
+        min-width: 82px !important;
     }
 
     .col-total {
-        width: 65px !important;
+        width: 72px !important;
+        min-width: 72px !important;
     }
 
-    .shop-table img {
-        width: 35px !important;
-        height: 35px !important;
-    }
+
+
 
     .btn-outline-primary.rounded-pill {
-        padding: 0.35rem 0.4rem !important;
-        font-size: 0.65rem !important;
-    }
-
-    .shop-table .fs-5 {
-        font-size: 0.85rem !important;
-    }
-
-    .shop-table .fs-6 {
-        font-size: 0.75rem !important;
+        padding: 0.25rem 0.3rem !important;
+        font-size: 0.6rem !important;
     }
 
     /* Compact Counter */
-    .bg-white.rounded-pill.p-1.border.border-primary {
+    .bg-white.rounded-pill.p-0.p-md-1.border.border-primary {
         padding: 0 !important;
     }
 
-    .bg-white.rounded-pill.p-1.border.border-primary .btn-link {
-        padding: 0 0.4rem !important;
-        font-size: 0.9rem !important;
+    .bg-white.rounded-pill.p-0.p-md-1.border.border-primary .btn-link {
+        padding: 0 0.3rem !important;
+        font-size: 0.8rem !important;
     }
 }
+
+
+/* Modal Summary Styles */
+.modal-content .col-lg-5 {
+    background-color: #f8f9fa !important;
+}
+
+.modal-content .flex-grow-1::-webkit-scrollbar {
+    width: 4px;
+}
+
+.modal-content .flex-grow-1::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
 
 /* Floating Actions */
 .floating-actions {

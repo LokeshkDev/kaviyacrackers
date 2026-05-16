@@ -62,17 +62,34 @@ const Shop = () => {
     setShowEnquiryModal(true);
   };
 
+  const cartItems = useMemo(() => {
+    return Object.keys(cart).map(id => {
+      const product = products.find(p => p.id == id);
+      return product ? { ...product, quantity: cart[id] } : null;
+    }).filter(Boolean);
+  }, [cart, products]);
+
   const handleFormChange = (e) => setFormData({ ...formData, [e.target.id]: e.target.value });
 
   const handleSubmitEnquiry = async (e) => {
     e.preventDefault();
     try {
-      const orderItems = Object.keys(cart).map(id => {
-        const product = products.find(p => p.id == id);
-        return { productId: id, name: product.name, quantity: cart[id], rate: product.rate, subtotal: product.rate * cart[id] };
-      });
+      const orderItems = cartItems.map(item => ({
+        productId: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        rate: item.rate,
+        subtotal: item.rate * item.quantity
+      }));
 
-      const orderData = { customerName: formData.name, customerPhone: formData.phone, customerEmail: formData.email, customerAddress: `${formData.address}, Pincode: ${formData.pincode}`, items: orderItems, totalAmount };
+      const orderData = { 
+        customerName: formData.name, 
+        customerPhone: formData.phone, 
+        customerEmail: formData.email, 
+        customerAddress: `${formData.address}, Pincode: ${formData.pincode}`, 
+        items: orderItems, 
+        totalAmount 
+      };
       await api.post('/orders', orderData);
       
       const message = `*Kaviya Crackers - New Order*%0A%0A*Name:* ${formData.name}%0A*Phone:* ${formData.phone}%0A*Total:* ₹${totalAmount}%0A%0A_Items:_ %0A${orderItems.map(i => `- ${i.name} (x${i.quantity})`).join('%0A')}`;
@@ -86,21 +103,21 @@ const Shop = () => {
 
   return (
     <main className="py-5">
-      <div className="container-fluid px-lg-5">
+      <div className="container-fluid px-2 px-md-5">
         
         {/* Search & Filter - NEAT BOUTIQUE UI */}
-        <div className="row g-3 mb-4 justify-content-center">
-          <div className="col-md-5">
+        <div className="row g-2 g-md-3 mb-4 justify-content-center">
+          <div className="col-8 col-md-5">
             <div className="input-group shadow-sm rounded-pill overflow-hidden border">
-              <span className="input-group-text bg-white border-0 ps-4"><i className="bi bi-search text-primary"></i></span>
-              <input type="text" className="form-control border-0 py-3 shadow-none" placeholder="Search for products..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <span className="input-group-text bg-white border-0 ps-3 ps-md-4"><i className="bi bi-search text-primary"></i></span>
+              <input type="text" className="form-control border-0 py-2 py-md-3 shadow-none" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
           </div>
-          <div className="col-md-3">
+          <div className="col-4 col-md-3">
             <div className="input-group shadow-sm rounded-pill overflow-hidden border">
-              <span className="input-group-text bg-white border-0 ps-4"><i className="bi bi-filter text-primary"></i></span>
-              <select className="form-select border-0 py-3 shadow-none" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
-                <option value="all">All Categories</option>
+              <span className="input-group-text bg-white border-0 ps-2 ps-md-4 d-none d-sm-flex"><i className="bi bi-filter text-primary"></i></span>
+              <select className="form-select border-0 py-2 py-md-3 shadow-none ps-2 ps-md-4" style={{ fontSize: '0.85rem' }} value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
+                <option value="all">All</option>
                 {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
@@ -108,15 +125,15 @@ const Shop = () => {
         </div>
 
         {/* Product Table - NEAT ROUNDED STRUCTURE */}
-        <div className="table-responsive shadow-lg rounded-4 mb-5 border">
-          <table className="table table-hover align-middle mb-0 shop-table">
+        <div className="table-responsive shadow-lg rounded-4 mb-5 border overflow-hidden">
+          <table className="table table-hover align-middle mb-0 shop-table w-100">
             <thead>
               <tr>
-                <th className="ps-2 text-center col-img">Img</th>
-                <th className="px-1">Product Details</th>
+                <th className="ps-2 text-center col-img d-none d-md-table-cell">Img</th>
+                <th className="px-1 px-md-3">Product Details</th>
                 <th className="text-center col-rate">Rate</th>
                 <th className="text-center col-qty">Qty</th>
-                <th className="text-end pe-2 col-total">Total</th>
+                <th className="text-end pe-2 pe-md-4 col-total">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -126,11 +143,11 @@ const Shop = () => {
                 Object.keys(groupedProducts).map(catName => (
                   <React.Fragment key={catName}>
                     <tr className="category-row">
-                      <td colSpan="5" className="py-4 ps-4 fw-bold text-dark border-bottom fs-5">{catName}</td>
+                      <td colSpan="5" className="py-2 py-md-4 ps-3 ps-md-4 fw-bold text-dark border-bottom fs-6 fs-md-5">{catName}</td>
                     </tr>
                     {groupedProducts[catName].map(p => (
                       <tr key={p.id}>
-                        <td className="text-center">
+                        <td className="text-center d-none d-md-table-cell">
                           <img 
                             src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} 
                             alt={p.name} 
@@ -140,28 +157,41 @@ const Shop = () => {
                             onError={(e) => { e.target.src = logo; }}
                           />
                         </td>
-                        <td>
-                          <div className="fw-bold text-dark fs-6">{p.name}</div>
-                          <div className="text-muted small mb-1">{p.content}</div>
+                        <td className="px-1 px-md-3" style={{ minWidth: '120px' }}>
+                          <div className="d-flex align-items-start">
+                            <img 
+                              src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} 
+                              alt={p.name} 
+                              width="40" 
+                              height="40" 
+                              className="rounded-2 shadow-sm object-fit-cover me-2 d-md-none mt-1"
+                              onError={(e) => { e.target.src = logo; }}
+                            />
+                            <div>
+                              <div className="fw-bold text-dark fs-custom-mobile lh-sm mb-1">{p.name}</div>
+                              <div className="text-muted extra-small lh-1">{p.content}</div>
+                            </div>
+                          </div>
                         </td>
-                        <td className="text-center">
-                          <div className="text-muted small text-decoration-line-through mb-1">₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
-                          <div className="bg-success text-white fw-bold py-2 px-3 rounded-4 d-inline-block shadow-sm">₹{p.rate}</div>
+                        <td className="text-center" style={{ width: '65px' }}>
+                          <div className="text-muted extra-small text-decoration-line-through mb-0 d-md-none" style={{ fontSize: '0.55rem' }}>₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
+                          <div className="text-muted extra-small text-decoration-line-through mb-0 d-none d-md-block">₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
+                          <div className="bg-success text-white fw-bold py-1 px-1 rounded-4 d-inline-block shadow-sm extra-small">₹{p.rate}</div>
                         </td>
-                        <td className="text-center">
+                        <td className="text-center" style={{ width: '80px' }}>
                           {!cart[p.id] ? (
-                            <button className="btn btn-outline-primary rounded-pill px-4 py-2 fw-bold w-100 shadow-sm transition-all" onClick={() => updateCart(p.id, 1)}>
+                            <button className="btn btn-outline-primary rounded-pill px-2 py-1 fw-bold w-100 shadow-sm transition-all extra-small" onClick={() => updateCart(p.id, 1)}>
                               Add
                             </button>
                           ) : (
-                            <div className="d-flex align-items-center justify-content-between bg-white rounded-pill p-1 border border-primary shadow-sm overflow-hidden">
-                              <button className="btn btn-link text-decoration-none fw-bold px-3 py-0 text-primary fs-5" onClick={() => updateCart(p.id, -1)}>−</button>
-                              <span className="fw-bold px-1">{cart[p.id]}</span>
-                              <button className="btn btn-link text-decoration-none fw-bold px-3 py-0 text-primary fs-5" onClick={() => updateCart(p.id, 1)}>+</button>
+                            <div className="d-flex align-items-center justify-content-between bg-white rounded-pill p-0 border border-primary shadow-sm overflow-hidden">
+                              <button className="btn btn-link text-decoration-none fw-bold px-2 py-0 text-primary fs-6" onClick={() => updateCart(p.id, -1)}>−</button>
+                              <span className="fw-bold px-0 small">{cart[p.id]}</span>
+                              <button className="btn btn-link text-decoration-none fw-bold px-2 py-0 text-primary fs-6" onClick={() => updateCart(p.id, 1)}>+</button>
                             </div>
                           )}
                         </td>
-                        <td className="text-end pe-3 fw-bold text-primary fs-5">₹{(cart[p.id] || 0) * p.rate}</td>
+                        <td className="text-end pe-1 pe-md-4 fw-bold text-primary fs-6" style={{ width: '70px' }}>₹{(cart[p.id] || 0) * p.rate}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -170,6 +200,7 @@ const Shop = () => {
             </tbody>
           </table>
         </div>
+
       </div>
 
       {/* Floating Display Logic */}
@@ -195,59 +226,89 @@ const Shop = () => {
       </div>
 
       {/* Mobile Fixed Bottom Bar */}
-      <div className="fixed-bottom bg-white shadow-lg p-3 border-top d-lg-none" style={{ zIndex: 1030 }}>
-        {totalAmount < 3000 && totalAmount > 0 && <div className="text-danger text-center small fw-bold mb-2 animate-fade-in">Min Order ₹3000 (Add ₹{3000 - totalAmount} more)</div>}
+      <div className="fixed-bottom bg-white shadow-lg p-2 p-md-3 border-top d-lg-none" style={{ zIndex: 1030 }}>
+        {totalAmount < 3000 && totalAmount > 0 && <div className="text-danger text-center extra-small fw-bold mb-1 animate-fade-in">Min Order ₹3000 (Add ₹{3000 - totalAmount} more)</div>}
         <div className="container d-flex justify-content-between align-items-center">
           <div>
             <div className="text-muted small lh-1">Total Amount</div>
-            <div className="fs-4 fw-bold text-primary">₹{totalAmount}</div>
+            <div className="fs-5 fw-bold text-primary">₹{totalAmount}</div>
           </div>
-          <button onClick={handleOpenEnquiry} className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm">Send Enquiry</button>
+          <button onClick={handleOpenEnquiry} className="btn btn-primary rounded-pill px-3 py-2 fw-bold shadow-sm small">Send Enquiry</button>
         </div>
       </div>
 
       {/* Enquiry Modal */}
       {showEnquiryModal && (
         <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content rounded-5 border-0 shadow">
-              <div className="modal-header border-0 p-4 pb-0">
-                <h5 className="fw-bold mb-0 text-primary"><i className="bi bi-send-fill me-2"></i>Complete Your Enquiry</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEnquiryModal(false)}></button>
-              </div>
-              <div className="modal-body p-4">
-                <p className="text-muted small mb-4">Please provide your details. Our team will contact you shortly.</p>
-                <form onSubmit={handleSubmitEnquiry}>
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Full Name *</label>
-                    <input type="text" id="name" className="form-control rounded-3" placeholder="Enter your name" required value={formData.name} onChange={handleFormChange} />
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content rounded-5 border-0 shadow overflow-hidden">
+              <div className="row g-0">
+                {/* Form Column */}
+                <div className="col-lg-7 p-4 p-md-5">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h4 className="fw-bold mb-0 text-primary"><i className="bi bi-send-fill me-2"></i>Send Enquiry</h4>
+                    <button type="button" className="btn-close d-lg-none" onClick={() => setShowEnquiryModal(false)}></button>
                   </div>
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Phone *</label>
-                      <input type="tel" id="phone" className="form-control rounded-3" placeholder="10-digit" pattern="[0-9]{10}" required value={formData.phone} onChange={handleFormChange} />
+                  <form onSubmit={handleSubmitEnquiry}>
+                    <div className="mb-3">
+                      <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Full Name *</label>
+                      <input type="text" id="name" className="form-control rounded-3 py-2" placeholder="Enter your name" required value={formData.name} onChange={handleFormChange} />
                     </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Email *</label>
-                      <input type="email" id="email" className="form-control rounded-3" placeholder="Email" required value={formData.email} onChange={handleFormChange} />
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Phone *</label>
+                        <input type="tel" id="phone" className="form-control rounded-3 py-2" placeholder="10-digit number" pattern="[0-9]{10}" required value={formData.phone} onChange={handleFormChange} />
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Email *</label>
+                        <input type="email" id="email" className="form-control rounded-3 py-2" placeholder="Your email address" required value={formData.email} onChange={handleFormChange} />
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Full Delivery Address *</label>
+                      <textarea id="address" className="form-control rounded-3 py-2" rows="2" placeholder="House No, Street, City..." required value={formData.address} onChange={handleFormChange}></textarea>
+                    </div>
+                    <div className="mb-4">
+                      <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Pincode *</label>
+                      <input type="text" id="pincode" className="form-control rounded-3 py-2" placeholder="6-digit pincode" pattern="[0-9]{6}" required value={formData.pincode} onChange={handleFormChange} />
+                    </div>
+                    <button type="submit" className="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow hover-scale">Confirm & Send to WhatsApp</button>
+                    <button type="button" className="btn btn-link w-100 mt-2 text-muted text-decoration-none small d-md-none" onClick={() => setShowEnquiryModal(false)}>Close</button>
+                  </form>
+                </div>
+                
+                {/* Cart Summary Column */}
+                <div className="col-lg-5 bg-light border-start p-4 p-md-5 d-flex flex-column">
+                  <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h5 className="fw-bold mb-0">Order Summary</h5>
+                    <button type="button" className="btn-close d-none d-lg-block" onClick={() => setShowEnquiryModal(false)}></button>
+                  </div>
+                  <div className="flex-grow-1 overflow-auto mb-4" style={{ maxHeight: '300px' }}>
+                    {cartItems.map(item => (
+                      <div key={item.id} className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-white">
+                        <div className="pe-3">
+                          <div className="fw-bold small">{item.name}</div>
+                          <div className="text-muted extra-small">₹{item.rate} x {item.quantity}</div>
+                        </div>
+                        <div className="fw-bold text-primary">₹{item.rate * item.quantity}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-auto">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted fw-bold">Items Total:</span>
+                      <span className="fw-bold">₹{totalAmount}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mb-4 pt-3 border-top">
+                      <h4 className="fw-bold mb-0">Grand Total:</h4>
+                      <h3 className="fw-bold text-primary mb-0">₹{totalAmount}</h3>
+                    </div>
+                    <div className="bg-white p-3 rounded-4 border small">
+                      <i className="bi bi-info-circle-fill text-primary me-2"></i>
+                      Estimated delivery within 3-5 business days after confirmation.
                     </div>
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Address *</label>
-                    <textarea id="address" className="form-control rounded-3" rows="2" placeholder="House No, City..." required value={formData.address} onChange={handleFormChange}></textarea>
-                  </div>
-                  <div className="mb-4">
-                    <label className="form-label small fw-bold text-uppercase" style={{ fontSize: '0.65rem' }}>Pincode *</label>
-                    <input type="text" id="pincode" className="form-control rounded-3" placeholder="6-digit" pattern="[0-9]{6}" required value={formData.pincode} onChange={handleFormChange} />
-                  </div>
-                  <div className="bg-light p-3 rounded-4 mb-4 border">
-                    <div className="d-flex justify-content-between align-items-center fw-bold">
-                      <span className="text-muted">Total:</span>
-                      <span className="text-primary fs-4">₹{totalAmount}</span>
-                    </div>
-                  </div>
-                  <button type="submit" className="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow hover-scale">Submit Enquiry</button>
-                </form>
+                </div>
               </div>
             </div>
           </div>
@@ -272,3 +333,4 @@ const Shop = () => {
 };
 
 export default Shop;
+
