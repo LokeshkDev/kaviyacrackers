@@ -1,6 +1,6 @@
 /* Kaviya Crackers - Master CSS Sync (v1.2.0 - 2026-05-12) */
 :root {
-    --primary-color: #FF7A00;
+    --primary-color: #EAB308;
     --secondary-color: #FFD93D;
     --sky-blue: #4DA8FF;
     --soft-purple: #9B5DE5;
@@ -11,7 +11,7 @@
     --dark-bg: #1A1A1A;
     --text-muted: #6C757D;
     --soft-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    --premium-shadow: 0 20px 40px rgba(255, 122, 0, 0.1);
+    --premium-shadow: 0 20px 40px rgba(234, 179, 8, 0.1);
     --promo-marquee-height: 40px;
 }
 
@@ -41,7 +41,7 @@ body {
 }
 
 .bg-soft-orange {
-    background-color: rgba(255, 122, 0, 0.1);
+    background-color: rgba(234, 179, 8, 0.1);
 }
 
 .bg-soft-yellow {
@@ -73,7 +73,7 @@ body {
     width: 100%;
     z-index: 1001;
     height: var(--promo-marquee-height);
-    background: linear-gradient(90deg, #1A1A1A, #FF7A00, #1A1A1A);
+    background: linear-gradient(90deg, #1A1A1A, #EAB308, #1A1A1A);
     color: #fff;
     border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
@@ -167,7 +167,7 @@ body {
     background: #FFF9E6 !important;
     /* Soft yellow-orange background */
     font-weight: 800;
-    color: #FF7A00;
+    color: #EAB308;
     border-top: 2px solid #FFE6CC;
     text-align: center;
 }
@@ -434,7 +434,7 @@ body {
 
 .form-control:focus,
 .form-select:focus {
-    box-shadow: 0 0 0 0.25rem rgba(255, 122, 0, 0.1);
+    box-shadow: 0 0 0 0.25rem rgba(234, 179, 8, 0.1);
     border-color: var(--primary-color);
 }
 
@@ -446,7 +446,7 @@ body {
     width: 45px !important;
     height: 45px !important;
     border-radius: 50% !important;
-    box-shadow: 0 8px 25px rgba(255, 122, 0, 0.15) !important;
+    box-shadow: 0 8px 25px rgba(234, 179, 8, 0.15) !important;
     transition: all 0.3s ease;
     border: 2px solid #fff;
     opacity: 1 !important;
@@ -455,7 +455,7 @@ body {
 .swiper-button-next:hover,
 .swiper-button-prev:hover {
     transform: scale(1.1);
-    box-shadow: 0 10px 30px rgba(255, 122, 0, 0.25) !important;
+    box-shadow: 0 10px 30px rgba(234, 179, 8, 0.25) !important;
 }
 
 .swiper-button-next:after,
@@ -513,12 +513,12 @@ body {
 .btn-primary {
     background: linear-gradient(45deg, var(--primary-color), #FFB300);
     border: none;
-    box-shadow: 0 10px 20px rgba(255, 122, 0, 0.2);
+    box-shadow: 0 10px 20px rgba(234, 179, 8, 0.2);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(255, 122, 0, 0.3);
+    box-shadow: 0 15px 30px rgba(234, 179, 8, 0.3);
 }
 
 /* Animations */
@@ -555,7 +555,7 @@ body {
 
 /* About Grid */
 .bg-packaging {
-    background: linear-gradient(rgba(255, 122, 0, 0.7), rgba(255, 122, 0, 0.7)), url('/assets/img/packaging.png');
+    background: linear-gradient(rgba(234, 179, 8, 0.7), rgba(234, 179, 8, 0.7)), url('/assets/img/packaging.png');
     background-size: cover;
 }
 

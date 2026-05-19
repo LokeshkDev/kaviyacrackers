@@ -31,10 +31,10 @@ const Navbar = () => {
             <img src={logo} alt="Kaviya Crackers Logo" height="40" className="me-2 rounded-2 d-md-none" />
             <img src={logo} alt="Kaviya Crackers Logo" height="70" className="me-3 rounded-2 d-none d-md-block" />
             <div className="d-flex flex-column justify-content-center lh-1 overflow-hidden">
-              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#ff7a00', fontSize: '0.85rem' }}>
+              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#EAB308', fontSize: '0.85rem' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h5>
-              <h4 className="fw-bold mb-0 d-none d-md-block" style={{ color: '#ff7a00', letterSpacing: '-0.5px' }}>
+              <h4 className="fw-bold mb-0 d-none d-md-block" style={{ color: '#EAB308', letterSpacing: '-0.5px' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h4>
               <div className="fw-bold text-dark mt-1 d-md-none" style={{ fontSize: '0.6rem' }}>

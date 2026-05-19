@@ -225,20 +225,20 @@ const Admin = () => {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 40px; }
     .invoice-container { max-width: 800px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #FF7A00; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #EAB308; }
     .brand { display: flex; align-items: center; gap: 16px; }
-    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #FF7A00; object-fit: cover; box-shadow: 0 4px 12px rgba(255,122,0,0.15); }
-    .brand-info h1 { color: #FF7A00; font-size: 28px; margin-bottom: 4px; }
+    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #EAB308; object-fit: cover; box-shadow: 0 4px 12px rgba(234, 179, 8,0.15); }
+    .brand-info h1 { color: #EAB308; font-size: 28px; margin-bottom: 4px; }
     .brand-info p { color: #888; font-size: 13px; }
     .invoice-meta { text-align: right; }
-    .invoice-meta h2 { color: #FF7A00; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
+    .invoice-meta h2 { color: #EAB308; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
     .invoice-meta p { color: #666; font-size: 13px; line-height: 1.6; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
     .info-box { flex: 1; }
-    .info-box h4 { color: #FF7A00; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .info-box h4 { color: #EAB308; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
     .info-box p { font-size: 13px; color: #555; line-height: 1.7; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    thead th { background: #FF7A00; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    thead th { background: #EAB308; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
     thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
     tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
     tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }
@@ -246,7 +246,7 @@ const Admin = () => {
     .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
     .totals-box { width: 280px; }
     .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #666; border-bottom: 1px solid #f0f0f0; }
-    .totals-row.grand { border-bottom: none; border-top: 2px solid #FF7A00; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #FF7A00; }
+    .totals-row.grand { border-bottom: none; border-top: 2px solid #EAB308; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #EAB308; }
     .footer { text-align: center; padding-top: 30px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
     .footer p { margin-bottom: 4px; }
     .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
@@ -703,7 +703,7 @@ const Admin = () => {
                 <div className="row g-3 mb-4">
                   <div className="col-md-6">
                     <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Customer</h6>
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#EAB308'}}>Customer</h6>
                       <p className="fw-bold mb-1">{selectedOrder.customerName}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{selectedOrder.customerPhone}</p>
                       <p className="small text-muted mb-0"><i className="bi bi-envelope me-1"></i>{selectedOrder.customerEmail}</p>
@@ -711,7 +711,7 @@ const Admin = () => {
                   </div>
                   <div className="col-md-6">
                     <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Delivery</h6>
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#EAB308'}}>Delivery</h6>
                       <p className="small text-muted mb-1"><i className="bi bi-geo-alt me-1"></i>{selectedOrder.customerAddress}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-calendar3 me-1"></i>{new Date(selectedOrder.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       <span className={`badge rounded-pill px-3 py-1 ${
@@ -725,7 +725,7 @@ const Admin = () => {
                 {/* Items Table */}
                 <div className="bg-white rounded-4 border overflow-hidden shadow-sm">
                   <table className="table table-hover align-middle mb-0">
-                    <thead style={{backgroundColor:'#FF7A00'}}>
+                    <thead style={{backgroundColor:'#EAB308'}}>
                       <tr>
                         <th className="py-3 ps-4 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>#</th>
                         <th className="py-3 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>Item Name</th>
