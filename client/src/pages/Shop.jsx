@@ -10,7 +10,7 @@ const Shop = () => {
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  
+
   // Modal State
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -30,7 +30,7 @@ const Shop = () => {
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            p.category.toLowerCase().includes(searchTerm.toLowerCase());
+        p.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
@@ -82,16 +82,16 @@ const Shop = () => {
         subtotal: item.rate * item.quantity
       }));
 
-      const orderData = { 
-        customerName: formData.name, 
-        customerPhone: formData.phone, 
-        customerEmail: formData.email, 
-        customerAddress: `${formData.address}, Pincode: ${formData.pincode}`, 
-        items: orderItems, 
-        totalAmount 
+      const orderData = {
+        customerName: formData.name,
+        customerPhone: formData.phone,
+        customerEmail: formData.email,
+        customerAddress: `${formData.address}, Pincode: ${formData.pincode}`,
+        items: orderItems,
+        totalAmount
       };
       await api.post('/orders', orderData);
-      
+
       const message = `*Kaviya Crackers - New Order*%0A%0A*Name:* ${formData.name}%0A*Phone:* ${formData.phone}%0A*Total:* ₹${totalAmount}%0A%0A_Items:_ %0A${orderItems.map(i => `- ${i.name} (x${i.quantity})`).join('%0A')}`;
       window.open(`https://wa.me/919342758753?text=${message}`, '_blank');
 
@@ -104,7 +104,7 @@ const Shop = () => {
   return (
     <main className="py-5">
       <div className="container-fluid px-2 px-md-5">
-        
+
         {/* Search & Filter - NEAT BOUTIQUE UI */}
         <div className="row g-2 g-md-3 mb-4 justify-content-center">
           <div className="col-8 col-md-5">
@@ -148,39 +148,39 @@ const Shop = () => {
                     {groupedProducts[catName].map(p => (
                       <tr key={p.id}>
                         <td className="text-center d-none d-md-table-cell">
-                          <img 
-                            src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} 
-                            alt={p.name} 
-                            width="60" 
-                            height="60" 
+                          <img
+                            src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo}
+                            alt={p.name}
+                            width="60"
+                            height="60"
                             className="rounded-3 shadow-sm object-fit-cover"
                             onError={(e) => { e.target.src = logo; }}
                           />
                         </td>
                         <td className="px-1 px-md-3" style={{ minWidth: '120px' }}>
                           <div className="d-flex align-items-start">
-                            <img 
-                              src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} 
-                              alt={p.name} 
-                              width="40" 
-                              height="40" 
+                            <img
+                              src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo}
+                              alt={p.name}
+                              width="40"
+                              height="40"
                               className="rounded-2 shadow-sm object-fit-cover me-2 d-md-none mt-1"
                               onError={(e) => { e.target.src = logo; }}
                             />
                             <div>
                               <div className="fw-bold text-dark fs-custom-mobile lh-sm mb-1">{p.name}</div>
-                              <div className="text-muted extra-small lh-1">{p.content}</div>
+                              <div className="fw-bold lh-1">{p.content}</div>
                             </div>
                           </div>
                         </td>
                         <td className="text-center" style={{ width: '65px' }}>
-                          <div className="text-muted extra-small text-decoration-line-through mb-0 d-md-none" style={{ fontSize: '0.55rem' }}>₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
-                          <div className="text-muted extra-small text-decoration-line-through mb-0 d-none d-md-block">₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
-                          <div className="bg-success text-white fw-bold py-1 px-1 rounded-4 d-inline-block shadow-sm extra-small">₹{p.rate}</div>
+                          <div className="fw-bold text-decoration-line-through mb-0 d-md-none" style={{ fontSize: '0.55rem' }}>₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
+                          <div className="fw-bold text-decoration-line-through mb-0 d-none d-md-block">₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
+                          <div className="bg-success text-white fw-bold py-1 px-1 rounded-4 d-inline-block shadow-sm">₹{p.rate}</div>
                         </td>
                         <td className="text-center" style={{ width: '80px' }}>
                           {!cart[p.id] ? (
-                            <button className="btn btn-outline-primary rounded-pill px-2 py-1 fw-bold w-100 shadow-sm transition-all extra-small" onClick={() => updateCart(p.id, 1)}>
+                            <button className="btn btn-outline-primary rounded-pill px-2 py-1 fw-bold w-100 shadow-sm transition-all" onClick={() => updateCart(p.id, 1)}>
                               Add
                             </button>
                           ) : (
@@ -218,7 +218,7 @@ const Shop = () => {
                 </div>
               )}
             </div>
-            <button onClick={handleOpenEnquiry} className="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-lg py-3 hover-scale">
+            <button onClick={handleOpenEnquiry} className="btn btn-primary btn-lg rounded-pill fw-bold shadow-lg hover-scale">
               <i className="bi bi-send-fill me-2"></i> Send Order Enquiry
             </button>
           </div>
@@ -276,7 +276,7 @@ const Shop = () => {
                     <button type="button" className="btn btn-link w-100 mt-2 text-muted text-decoration-none small d-md-none" onClick={() => setShowEnquiryModal(false)}>Close</button>
                   </form>
                 </div>
-                
+
                 {/* Cart Summary Column */}
                 <div className="col-lg-5 bg-light border-start p-4 p-md-5 d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-center mb-4">
@@ -288,6 +288,7 @@ const Shop = () => {
                       <div key={item.id} className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-white">
                         <div className="pe-3">
                           <div className="fw-bold small">{item.name}</div>
+                          <div className="text-muted extra-small mb-1">{item.content}</div>
                           <div className="text-muted extra-small">₹{item.rate} x {item.quantity}</div>
                         </div>
                         <div className="fw-bold text-primary">₹{item.rate * item.quantity}</div>

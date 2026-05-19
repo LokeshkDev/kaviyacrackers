@@ -119,7 +119,8 @@ const Navbar = () => {
                       className="rounded-3 shadow-sm object-fit-cover me-3"
                     />
                     <div className="flex-grow-1">
-                      <h6 className="fw-bold mb-0 small">{item.name}</h6>
+                      <h6 className="fw-bold mb-1 small">{item.name}</h6>
+                      <div className="fw-bold text-muted extra-small mb-1 lh-1">{item.content}</div>
                       <div className="text-primary fw-bold">₹{item.rate}</div>
                       <div className="d-flex align-items-center mt-2 bg-light rounded-pill px-2 py-1" style={{ width: 'fit-content' }}>
                         <button className="btn btn-sm btn-link p-0 text-decoration-none fw-bold" onClick={() => updateCart(item.id, -1)}>−</button>
