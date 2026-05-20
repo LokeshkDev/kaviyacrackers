@@ -736,3 +736,40 @@ tr:has(.dropdown-menu.show) {
 .dropdown-menu {
     z-index: 1070 !important;
 }
+
+/* Admin Mobile Sidebar */
+.admin-sidebar {
+    transition: transform 0.3s ease-in-out;
+}
+
+@media (max-width: 991.98px) {
+    .admin-sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1060 !important;
+        width: 280px;
+    }
+    .admin-sidebar.show {
+        transform: translateX(0);
+    }
+}
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1050;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+.sidebar-overlay.show {
+    display: block;
+    opacity: 1;
+}

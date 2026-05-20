@@ -12,6 +12,8 @@ const Admin = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Modal States
   const [showProductModal, setShowProductModal] = useState(false);
@@ -24,6 +26,36 @@ const Admin = () => {
     name: '', category: '', content: '', rate: '', originalRate: '', image: '' 
   });
   const [newCategory, setNewCategory] = useState({ name: '', image: '' });
+
+  const getSalesData = () => {
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7Days.push({
+        date: d,
+        label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        total: 0
+      });
+    }
+
+    orders.forEach(order => {
+      if (order.status !== 'Cancelled') {
+        const orderDate = new Date(order.date);
+        const dayMatch = last7Days.find(d => 
+          d.date.getDate() === orderDate.getDate() && 
+          d.date.getMonth() === orderDate.getMonth() && 
+          d.date.getFullYear() === orderDate.getFullYear()
+        );
+        if (dayMatch) {
+          dayMatch.total += (order.totalAmount || 0);
+        }
+      }
+    });
+
+    const maxSales = Math.max(...last7Days.map(d => d.total), 1);
+    return { data: last7Days, maxSales };
+  };
 
   useEffect(() => {
     if (sessionStorage.getItem('admin_auth') === 'true') {
@@ -39,6 +71,12 @@ const Admin = () => {
       setProducts(data.products || []);
       setCategories(data.categories || []);
     }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await loadData();
+    setTimeout(() => setIsSyncing(false), 800); // Small delay for UX feel
   };
 
   const handleLogin = async (e) => {
@@ -65,6 +103,25 @@ const Admin = () => {
     if (res.success) {
       setOrders(orders.map(o => o._id === id ? { ...o, status, cancellationNote } : o));
       loadData();
+    }
+  };
+
+  const handleEditNote = async (order) => {
+    const note = window.prompt("Edit cancellation note:", order.cancellationNote || "");
+    if (note !== null) {
+      const res = await updateOrderStatus(order._id, order.status, note.trim());
+      if (res.success) {
+        setOrders(orders.map(o => o._id === order._id ? { ...o, cancellationNote: note.trim() } : o));
+      }
+    }
+  };
+
+  const handleRemoveNote = async (order) => {
+    if (window.confirm("Are you sure you want to remove the cancellation note?")) {
+      const res = await updateOrderStatus(order._id, order.status, "");
+      if (res.success) {
+        setOrders(orders.map(o => o._id === order._id ? { ...o, cancellationNote: "" } : o));
+      }
     }
   };
 
@@ -399,13 +456,19 @@ const Admin = () => {
   }
 
   return (
-    <div className="container-fluid p-0 overflow-hidden">
+    <div className="container-fluid p-0 overflow-hidden position-relative">
+      {/* Mobile Sidebar Overlay */}
+      <div className={`sidebar-overlay ${isSidebarOpen ? 'show' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
+
       <div className="row g-0">
         {/* Sidebar */}
-        <div className="col-lg-2 bg-white min-vh-100 border-end p-4 sidebar shadow-sm position-fixed z-3">
-          <div className="text-center mb-5">
+        <div className={`col-lg-2 bg-white min-vh-100 border-end p-4 sidebar shadow-sm admin-sidebar ${isSidebarOpen ? 'show' : ''}`}>
+          <div className="text-center mb-5 position-relative">
             <img src={logo} alt="Logo" height="50" className="rounded-2 shadow-sm" />
             <h6 className="mt-3 fw-bold text-uppercase small tracking-widest text-primary">Kaviya Admin</h6>
+            <button className="btn btn-sm btn-light position-absolute top-0 end-0 d-lg-none" onClick={() => setIsSidebarOpen(false)}>
+              <i className="bi bi-x-lg"></i>
+            </button>
           </div>
           <nav className="nav flex-column gap-2">
             {[
@@ -435,11 +498,29 @@ const Admin = () => {
         </div>
 
         {/* Main Content */}
-        <div className="col-lg-10 offset-lg-2 p-5 bg-white-tertiary min-vh-100">
+        <div className="col-lg-10 p-3 p-md-5 bg-white-tertiary min-vh-100 ms-auto">
           
+          {/* Mobile Header */}
+          <div className="d-flex d-lg-none align-items-center justify-content-between mb-4 bg-white p-3 rounded-4 shadow-sm">
+            <div className="d-flex align-items-center gap-3">
+              <button className="btn btn-light rounded-circle shadow-sm" onClick={() => setIsSidebarOpen(true)}>
+                <i className="bi bi-list fs-4"></i>
+              </button>
+              <h5 className="fw-bold m-0 text-primary">Kaviya Admin</h5>
+            </div>
+            <button className="btn btn-sm btn-outline-primary rounded-pill shadow-sm" onClick={handleSync} disabled={isSyncing}>
+              <i className={`bi bi-arrow-repeat me-1 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync'}
+            </button>
+          </div>
+
           {activeSection === 'dashboard' && (
             <div className="admin-section animate-fade-in">
-              <h2 className="fw-bold mb-4">Dashboard Overview</h2>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h2 className="fw-bold m-0">Dashboard Overview</h2>
+                <button className="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm d-none d-lg-flex align-items-center" onClick={handleSync} disabled={isSyncing}>
+                  <i className={`bi bi-arrow-repeat me-2 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync Data'}
+                </button>
+              </div>
               <div className="row g-4 mb-5">
                 {[
                   { label: 'Total Products', val: products.length, icon: 'box', color: 'primary' },
@@ -458,6 +539,75 @@ const Admin = () => {
                   </div>
                 ))}
               </div>
+
+              <div className="row g-4">
+                <div className="col-lg-8">
+                  <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0 h-100">
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <h4 className="fw-bold m-0">Weekly Sales Report</h4>
+                      <span className="badge bg-soft-primary text-primary rounded-pill px-3 py-2">Last 7 Days</span>
+                    </div>
+                    
+                    {/* Custom CSS Bar Chart */}
+                    <div className="d-flex align-items-end justify-content-between pt-4 pb-2" style={{ height: '250px' }}>
+                      {(() => {
+                        const { data, maxSales } = getSalesData();
+                        return data.map((day, idx) => (
+                          <div key={idx} className="d-flex flex-column align-items-center" style={{ width: '12%' }}>
+                            <div className="fw-bold text-dark small mb-2 opacity-75">
+                              ₹{day.total >= 1000 ? (day.total/1000).toFixed(1) + 'k' : day.total}
+                            </div>
+                            <div className="w-100 rounded-top-3 bg-primary position-relative shadow-sm" 
+                                 style={{ 
+                                   height: `${(day.total / maxSales) * 160}px`, 
+                                   minHeight: '4px',
+                                   background: 'linear-gradient(180deg, #7209B7 0%, #3A0CA3 100%)',
+                                   transition: 'height 1s ease-out'
+                                 }}>
+                            </div>
+                            <div className="mt-3 text-muted small fw-semibold text-uppercase">{day.label}</div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="col-lg-4">
+                  <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0 h-100">
+                    <h4 className="fw-bold mb-4">Quick Actions</h4>
+                    <div className="d-flex flex-column gap-3">
+                      <button className="btn btn-outline-primary rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
+                              onClick={() => { setActiveSection('products'); setTimeout(() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:''}); setShowProductModal(true); }, 100); }}>
+                        <span className="d-flex align-items-center gap-3">
+                          <i className="bi bi-box-seam fs-4"></i> Add New Product
+                        </span>
+                        <i className="bi bi-chevron-right"></i>
+                      </button>
+                      <button className="btn btn-outline-warning rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
+                              onClick={() => { setActiveSection('categories'); setTimeout(() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }, 100); }}>
+                        <span className="d-flex align-items-center gap-3 text-dark">
+                          <i className="bi bi-grid fs-4 text-warning"></i> Create Category
+                        </span>
+                        <i className="bi bi-chevron-right text-dark"></i>
+                      </button>
+                      <button className="btn btn-outline-info rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
+                              onClick={() => setActiveSection('orders')}>
+                        <span className="d-flex align-items-center gap-3 text-dark">
+                          <i className="bi bi-chat-dots fs-4 text-info"></i> View Enquiries
+                        </span>
+                        <i className="bi bi-chevron-right text-dark"></i>
+                      </button>
+                      <Link to="/shop" className="btn btn-outline-success rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm text-decoration-none mt-2">
+                        <span className="d-flex align-items-center gap-3 text-dark">
+                          <i className="bi bi-shop fs-4 text-success"></i> Visit Live Store
+                        </span>
+                        <i className="bi bi-box-arrow-up-right text-dark"></i>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           {activeSection === 'products' && (
@@ -473,9 +623,10 @@ const Admin = () => {
                 </button>
               </div>
 
-              <div className="bg-white rounded-5 shadow-sm border-0 overflow-hidden">
-                <table className="table table-hover align-middle mb-0">
-                  <thead className="bg-white-tertiary border-bottom">
+              <div className="bg-white rounded-5 shadow-sm overflow-hidden border-0">
+                <div className="table-responsive border-0">
+                  <table className="table table-hover align-middle mb-0 text-nowrap">
+                    <thead className="bg-white-tertiary border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Img</th>
                       <th className="py-3">Product Name</th>
@@ -507,17 +658,26 @@ const Admin = () => {
                     ))}
                   </tbody>
                 </table>
+               </div>
               </div>
             </div>
           )}
 
           {activeSection === 'orders' && (
             <div className="admin-section animate-fade-in">
-              <h2 className="fw-bold mb-2">Customer Enquiries</h2>
-              <p className="text-muted mb-5">Review and manage festival order enquiries</p>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                  <h2 className="fw-bold mb-1">Customer Enquiries</h2>
+                  <p className="text-muted mb-0">Review and manage festival order enquiries</p>
+                </div>
+                <button className="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm d-none d-lg-flex align-items-center" onClick={handleSync} disabled={isSyncing}>
+                  <i className={`bi bi-arrow-repeat me-2 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync Orders'}
+                </button>
+              </div>
               
-              <div className="bg-white rounded-5 shadow-sm border-0" style={{ overflow: 'visible' }}>
-                <table className="table table-hover align-middle mb-0" style={{ overflow: 'visible' }}>
+              <div className="bg-white rounded-5 shadow-sm overflow-hidden border-0">
+               <div className="table-responsive border-0">
+                <table className="table table-hover align-middle mb-0 text-nowrap">
                   <thead className="bg-white-tertiary border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Date</th>
@@ -533,47 +693,77 @@ const Admin = () => {
                       <tr><td colSpan="6" className="text-center py-5 text-muted">No enquiries found.</td></tr>
                     ) : (
                       orders.map(order => (
-                        <tr key={order._id} style={{ overflow: 'visible' }}>
-                          <td className="ps-4 small text-muted lh-1">
-                            {new Date(order.date).toLocaleDateString()}<br/>
-                            <span style={{fontSize:'0.7rem'}}>{new Date(order.date).toLocaleTimeString()}</span>
-                          </td>
-                          <td>
-                            <div className="fw-bold">{order.customerName}</div>
-                            <div className="small text-primary fw-semibold">{order.customerPhone}</div>
-                          </td>
-                          <td>
-                            <div className="small text-muted" style={{maxWidth:'250px'}}>{order.customerAddress}</div>
-                            <div className="small text-info">{order.customerEmail}</div>
-                          </td>
-                          <td className="text-center fw-bold text-primary">₹{order.totalAmount}</td>
-                          <td className="text-center">
-                            <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm me-2" onClick={() => handleViewOrder(order)}>
-                              <i className="bi bi-eye me-1"></i>View
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onClick={() => handleDeleteOrder(order._id)}>
-                              <i className="bi bi-trash me-1"></i>Delete
-                            </button>
-                          </td>
-                          <td className="text-end pe-4" style={{ overflow: 'visible' }}>
-                            <div className="dropdown" style={{ position: 'relative' }}>
-                              <button className={`btn btn-sm dropdown-toggle rounded-pill px-3 shadow-sm ${order.status === 'Delivered' ? 'btn-success' : (order.status === 'Processing' ? 'btn-warning text-white' : (order.status === 'Cancelled' ? 'btn-danger text-white' : 'btn-light'))}`} 
-                                      data-bs-toggle="dropdown">
-                                {order.status}
+                        <React.Fragment key={order._id}>
+                          <tr style={{ overflow: 'visible', borderBottom: order.status === 'Cancelled' ? 'none' : '1px solid #dee2e6' }}>
+                            <td className="ps-4 small text-muted lh-1">
+                              {new Date(order.date).toLocaleDateString()}<br/>
+                              <span style={{fontSize:'0.7rem'}}>{new Date(order.date).toLocaleTimeString()}</span>
+                            </td>
+                            <td>
+                              <div className="fw-bold">{order.customerName}</div>
+                              <div className="small text-primary fw-semibold">{order.customerPhone}</div>
+                            </td>
+                            <td>
+                              <div className="small text-muted" style={{maxWidth:'250px'}}>{order.customerAddress}</div>
+                              <div className="small text-info">{order.customerEmail}</div>
+                            </td>
+                            <td className="text-center fw-bold text-primary">₹{order.totalAmount}</td>
+                            <td className="text-center">
+                              <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm me-2" onClick={() => handleViewOrder(order)}>
+                                <i className="bi bi-eye me-1"></i>View
                               </button>
-                              <ul className="dropdown-menu border-0 shadow rounded-4" style={{ zIndex: 1070, position: 'absolute' }}>
-                                <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Pending')}>Pending</button></li>
-                                <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Processing')}>Processing</button></li>
-                                <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Delivered')}>Delivered</button></li>
-                                <li><button className="dropdown-item text-danger fw-bold" onClick={() => handleStatusUpdate(order._id, 'Cancelled')}>Cancelled</button></li>
-                              </ul>
-                            </div>
-                          </td>
-                        </tr>
+                              <button className="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onClick={() => handleDeleteOrder(order._id)}>
+                                <i className="bi bi-trash me-1"></i>Delete
+                              </button>
+                            </td>
+                            <td className="text-end pe-4" style={{ overflow: 'visible' }}>
+                              <div className="dropdown" style={{ position: 'relative' }}>
+                                <button className={`btn btn-sm dropdown-toggle rounded-pill px-3 shadow-sm ${order.status === 'Delivered' ? 'btn-success' : (order.status === 'Processing' ? 'btn-warning text-white' : (order.status === 'Cancelled' ? 'btn-danger text-white' : 'btn-light'))}`} 
+                                        data-bs-toggle="dropdown">
+                                  {order.status}
+                                </button>
+                                <ul className="dropdown-menu border-0 shadow rounded-4" style={{ zIndex: 1070, position: 'absolute' }}>
+                                  <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Pending')}>Pending</button></li>
+                                  <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Processing')}>Processing</button></li>
+                                  <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Delivered')}>Delivered</button></li>
+                                  <li><button className="dropdown-item text-danger fw-bold" onClick={() => handleStatusUpdate(order._id, 'Cancelled')}>Cancelled</button></li>
+                                </ul>
+                              </div>
+                            </td>
+                          </tr>
+                          {order.status === 'Cancelled' && (
+                            <tr style={{ backgroundColor: '#fff5f5' }}>
+                              <td colSpan="6" className="p-3 border-bottom ps-4 pe-4">
+                                <div className="d-flex align-items-center justify-content-between rounded-4 bg-white p-3 shadow-sm border border-danger border-opacity-25 animate-fade-in">
+                                  <div className="d-flex align-items-start gap-3">
+                                    <div className="bg-soft-danger text-danger rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
+                                      <i className="bi bi-x-circle fs-5"></i>
+                                    </div>
+                                    <div>
+                                      <span className="badge bg-danger rounded-pill mb-1">Cancellation Note</span>
+                                      <p className="mb-0 text-muted small fw-semibold">
+                                        {order.cancellationNote || <span className="fst-italic text-secondary">No reason specified.</span>}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <button className="btn btn-sm btn-outline-secondary rounded-pill me-2 px-3 fw-bold shadow-sm" onClick={() => handleEditNote(order)}>
+                                      <i className="bi bi-pencil me-1"></i> Edit
+                                    </button>
+                                    <button className="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold shadow-sm" onClick={() => handleRemoveNote(order)}>
+                                      <i className="bi bi-eraser me-1"></i> Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))
                     )}
                   </tbody>
                 </table>
+               </div>
               </div>
             </div>
           )}
