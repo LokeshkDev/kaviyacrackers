@@ -1,17 +1,17 @@
 /* Kaviya Crackers - Master CSS Sync (v1.2.0 - 2026-05-12) */
 :root {
-    --primary-color: #EAB308;
-    --secondary-color: #FFD93D;
+    --primary-color: #FF7A00;
+    --secondary-color: #FFB057;
     --sky-blue: #4DA8FF;
     --soft-purple: #9B5DE5;
     --coral: #FF6B6B;
     --mint: #6EE7B7;
     --pink: #FFB3C6;
-    --cream: #FDFBF0;
+    --cream: #FFF8F0;
     --dark-bg: #1A1A1A;
     --text-muted: #6C757D;
     --soft-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    --premium-shadow: 0 20px 40px rgba(234, 179, 8, 0.1);
+    --premium-shadow: 0 20px 40px rgba(255, 122, 0, 0.1);
     --promo-marquee-height: 40px;
 }
 
@@ -30,7 +30,7 @@ body {
 
 /* Typography & Helpers */
 .text-gradient {
-    background: linear-gradient(45deg, var(--primary-color), #FFB300);
+    background: linear-gradient(45deg, var(--primary-color), #FFB057);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -41,11 +41,11 @@ body {
 }
 
 .bg-soft-orange {
-    background-color: rgba(234, 179, 8, 0.1);
+    background-color: rgba(255, 122, 0, 0.1);
 }
 
 .bg-soft-yellow {
-    background-color: rgba(255, 217, 61, 0.1);
+    background-color: rgba(255, 176, 87, 0.1);
 }
 
 .bg-light-cream {
@@ -73,7 +73,7 @@ body {
     width: 100%;
     z-index: 1001;
     height: var(--promo-marquee-height);
-    background: linear-gradient(90deg, #1A1A1A, #EAB308, #1A1A1A);
+    background: linear-gradient(90deg, #1A1A1A, #FF7A00, #1A1A1A);
     color: #fff;
     border-bottom: 1px solid rgba(255, 255, 255, 0.18);
     display: flex;
@@ -107,7 +107,7 @@ body {
     margin-right: 0.75rem;
     border-radius: 50%;
     background-color: var(--secondary-color);
-    box-shadow: 0 0 12px rgba(255, 217, 61, 0.8);
+    box-shadow: 0 0 12px rgba(255, 176, 87, 0.8);
 }
 
 @keyframes marqueeScroll {
@@ -164,10 +164,10 @@ body {
 }
 
 .category-row {
-    background: #FFF9E6 !important;
-    /* Soft yellow-orange background */
+    background: #FFF2E6 !important;
+    /* Soft orange-cream background */
     font-weight: 800;
-    color: #EAB308;
+    color: #FF7A00;
     border-top: 2px solid #FFE6CC;
     text-align: center;
 }
@@ -202,7 +202,7 @@ body {
 /* Hero Section */
 .hero-section {
     min-height: 90vh;
-    background: radial-gradient(circle at 90% 10%, rgba(255, 217, 61, 0.15) 0%, transparent 40%),
+    background: radial-gradient(circle at 90% 10%, rgba(255, 176, 87, 0.15) 0%, transparent 40%),
         radial-gradient(circle at 10% 90%, rgba(77, 168, 255, 0.1) 0%, transparent 40%);
 }
 
@@ -434,7 +434,7 @@ body {
 
 .form-control:focus,
 .form-select:focus {
-    box-shadow: 0 0 0 0.25rem rgba(234, 179, 8, 0.1);
+    box-shadow: 0 0 0 0.25rem rgba(255, 122, 0, 0.1);
     border-color: var(--primary-color);
 }
 
@@ -446,7 +446,7 @@ body {
     width: 45px !important;
     height: 45px !important;
     border-radius: 50% !important;
-    box-shadow: 0 8px 25px rgba(234, 179, 8, 0.15) !important;
+    box-shadow: 0 8px 25px rgba(255, 122, 0, 0.15) !important;
     transition: all 0.3s ease;
     border: 2px solid #fff;
     opacity: 1 !important;
@@ -455,7 +455,7 @@ body {
 .swiper-button-next:hover,
 .swiper-button-prev:hover {
     transform: scale(1.1);
-    box-shadow: 0 10px 30px rgba(234, 179, 8, 0.25) !important;
+    box-shadow: 0 10px 30px rgba(255, 122, 0, 0.25) !important;
 }
 
 .swiper-button-next:after,
@@ -511,14 +511,14 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(45deg, var(--primary-color), #FFB300);
+    background: linear-gradient(45deg, var(--primary-color), #FFB057);
     border: none;
-    box-shadow: 0 10px 20px rgba(234, 179, 8, 0.2);
+    box-shadow: 0 10px 20px rgba(255, 122, 0, 0.2);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(234, 179, 8, 0.3);
+    box-shadow: 0 15px 30px rgba(255, 122, 0, 0.3);
 }
 
 /* Animations */
@@ -555,7 +555,7 @@ body {
 
 /* About Grid */
 .bg-packaging {
-    background: linear-gradient(rgba(234, 179, 8, 0.7), rgba(234, 179, 8, 0.7)), url('/assets/img/packaging.png');
+    background: linear-gradient(rgba(255, 122, 0, 0.7), rgba(255, 122, 0, 0.7)), url('/assets/img/packaging.png');
     background-size: cover;
 }
 
@@ -673,7 +673,7 @@ body {
 }
 
 .rate-offer-badge {
-    background: linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%);
+    background: linear-gradient(135deg, #000 0%, #FF6B6B 100%);
     color: #ffffff !important;
     font-size: 0.6rem !important;
     font-weight: 800;
@@ -708,4 +708,31 @@ body {
         letter-spacing: 0.2px;
         box-shadow: 0 1px 3px rgba(255, 59, 48, 0.3);
     }
+}
+
+/* Fix for admin status dropdown clipping and z-index overlap */
+.dropdown {
+    position: relative;
+}
+
+/* Elevate the active dropdown and its parent containers when interacted with or hovered */
+.dropdown:focus-within,
+.dropdown:hover {
+    z-index: 1060 !important;
+}
+
+/* Modern :has selector to elevate parent cell and row when the dropdown menu is shown */
+td:has(.dropdown-menu.show) {
+    position: relative;
+    z-index: 1060 !important;
+}
+
+tr:has(.dropdown-menu.show) {
+    position: relative;
+    z-index: 1050 !important;
+}
+
+/* Ensure the dropdown menu itself is placed on the highest stack */
+.dropdown-menu {
+    z-index: 1070 !important;
 }

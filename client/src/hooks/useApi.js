@@ -39,9 +39,9 @@ export const useApi = () => {
     }
   };
 
-  const updateOrderStatus = async (id, status) => {
+  const updateOrderStatus = async (id, status, cancellationNote) => {
     try {
-      const response = await api.patch(`/orders/${id}`, { status });
+      const response = await api.patch(`/orders/${id}`, { status, cancellationNote });
       return response.data;
     } catch (error) {
       console.error('API Update Status Error:', error);

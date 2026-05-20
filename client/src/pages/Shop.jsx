@@ -92,9 +92,6 @@ const Shop = () => {
       };
       await api.post('/orders', orderData);
 
-      const message = `*Kaviya Crackers - New Order*%0A%0A*Name:* ${formData.name}%0A*Phone:* ${formData.phone}%0A*Total:* ₹${totalAmount}%0A%0A_Items:_ %0A${orderItems.map(i => `- ${i.name} (x${i.quantity})`).join('%0A')}`;
-      window.open(`https://wa.me/919342758753?text=${message}`, '_blank');
-
       setShowEnquiryModal(false);
       setShowSuccessModal(true);
       clearCart();
@@ -328,8 +325,21 @@ const Shop = () => {
             <div className="modal-content rounded-5 border-0 shadow text-center p-5">
               <div className="mb-4"><i className="bi bi-check-circle-fill text-success" style={{ fontSize: '5rem' }}></i></div>
               <h3 className="fw-bold mb-2">Enquiry Sent!</h3>
-              <p className="text-muted">Thank you. Our team will contact you shortly.</p>
-              <button className="btn btn-primary rounded-pill px-5 py-2 mt-4 fw-bold" onClick={() => setShowSuccessModal(false)}>Close</button>
+              <p className="text-muted mb-3">Thank you. Our team will contact you shortly.</p>
+              
+              <div className="alert border-0 rounded-4 p-3 small text-start mt-2" style={{ backgroundColor: 'rgba(255, 122, 0, 0.08)', color: '#FF7A00' }}>
+                <div className="d-flex gap-2">
+                  <i className="bi bi-envelope-fill fs-5 mt-0"></i>
+                  <div>
+                    <span className="fw-bold d-block mb-1" style={{ fontSize: '0.85rem' }}>Order Details Email Sent</span>
+                    <span style={{ color: '#555', fontSize: '0.78rem', display: 'inline-block', lineHeight: '1.3' }}>
+                      You'll receive an email of your order details. Please check your <strong>junk/spam folder</strong> too to verify your orders.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button className="btn btn-primary rounded-pill px-5 py-2 mt-3 fw-bold" onClick={() => setShowSuccessModal(false)}>Close</button>
             </div>
           </div>
         </div>

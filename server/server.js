@@ -108,7 +108,8 @@ const OrderSchema = new mongoose.Schema({
     items: Array,
     totalAmount: Number,
     date: { type: Date, default: Date.now },
-    status: { type: String, default: 'Pending' }
+    status: { type: String, default: 'Pending' },
+    cancellationNote: { type: String, default: '' }
 });
 const Order = mongoose.model('Order', OrderSchema);
 
@@ -148,14 +149,15 @@ async function sendOrderEmails(order) {
         `).join('');
 
         const emailBodyHtml = `
-            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fdfbf0;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #eab308; margin-top: 10px; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
-                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 2px;">Order Enquiry Confirmation</p>
+            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fff8f0;">
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
+                    <img src="cid:logo" alt="Kaviya Crackers Logo" style="height: 70px; border-radius: 8px; margin-bottom: 10px;" />
+                    <h2 style="color: #ff7a00; margin: 0; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
+                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 4px; margin-bottom: 0;">Order Enquiry Confirmation</p>
                 </div>
                 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
-                    <h3 style="border-bottom: 2px solid #eab308; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <tr>
                             <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
@@ -177,7 +179,7 @@ async function sendOrderEmails(order) {
                 </div>
 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
-                    <h3 style="border-bottom: 2px solid #eab308; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Items Summary</h3>
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Items Summary</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <thead>
                             <tr style="background-color: #f8f9fa;">
@@ -193,10 +195,16 @@ async function sendOrderEmails(order) {
                         <tfoot>
                             <tr>
                                 <td colspan="3" style="padding: 15px 8px 8px; font-weight: bold; text-align: right; font-size: 1.1rem; border-top: 2px solid #ddd;">Grand Total:</td>
-                                <td style="padding: 15px 8px 8px; font-weight: bold; text-align: right; color: #eab308; font-size: 1.1rem; border-top: 2px solid #ddd;">₹${order.totalAmount}</td>
+                                <td style="padding: 15px 8px 8px; font-weight: bold; text-align: right; color: #ff7a00; font-size: 1.1rem; border-top: 2px solid #ddd;">₹${order.totalAmount}</td>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
+                    <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
+                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:+919342758753" style="color: #ff7a00; text-decoration: none;">+91 93427 58753</a> (Vasanth)</p>
+                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
                 </div>
 
                 <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #9c9c9c; border-top: 1px solid #eaeaea; padding-top: 15px;">
@@ -222,6 +230,10 @@ ${itemsText}
 Grand Total: ₹${order.totalAmount}
 
 --------------------------------------------
+Contact Support:
+- Phone: +91 93427 58753 (Vasanth)
+- Website: www.kaviyacrackers.com
+--------------------------------------------
 Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
         `.trim();
 
@@ -232,6 +244,12 @@ Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
             'List-Unsubscribe': `<mailto:${smtpUser}?subject=unsubscribe>`
         };
 
+        const attachments = [{
+            filename: 'kaviya_crackers_logo.jpeg',
+            path: path.join(__dirname, 'assets', 'img', 'kaviya_crackers_logo.jpeg'),
+            cid: 'logo'
+        }];
+
         // Send to Seller
         if (sellerEmail) {
             await transporter.sendMail({
@@ -241,7 +259,8 @@ Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
                 html: emailBodyHtml,
                 text: emailBodyText,
                 replyTo: order.customerEmail || smtpUser,
-                headers: commonHeaders
+                headers: commonHeaders,
+                attachments
             });
             console.log(`Email successfully sent to seller (${sellerEmail})`);
         }
@@ -255,13 +274,209 @@ Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
                 html: emailBodyHtml,
                 text: emailBodyText,
                 replyTo: sellerEmail || smtpUser,
-                headers: commonHeaders
+                headers: commonHeaders,
+                attachments
             });
             console.log(`Email successfully sent to customer (${order.customerEmail})`);
         }
 
     } catch (err) {
         console.error('Failed to send order emails:', err);
+    }
+}
+
+async function sendStatusUpdateEmail(order) {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT || 587;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const sellerEmail = process.env.SELLER_EMAIL;
+
+    // Check if configuration is missing
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('Mailer Warning: SMTP not configured. Skipping status update email.');
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: Number(smtpPort),
+            secure: Number(smtpPort) === 465,
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            }
+        });
+
+        // Format items table for HTML
+        const items = Array.isArray(order.items) ? order.items : [];
+        const itemsHtml = items.map(item => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${item.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.rate}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.subtotal}</td>
+            </tr>
+        `).join('');
+
+        const statusColors = {
+            'Pending': '#ff7a00',
+            'Confirmed': '#28a745',
+            'Shipped': '#17a2b8',
+            'Delivered': '#28a745',
+            'Cancelled': '#dc3545'
+        };
+        const statusColor = statusColors[order.status] || '#ff7a00';
+
+        let cancellationHtml = '';
+        if (order.status === 'Cancelled' && order.cancellationNote) {
+            cancellationHtml = `
+                <div style="background-color: #dc354510; border-left: 4px solid #dc3545; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: left;">
+                    <strong style="color: #dc3545;">Cancellation Reason:</strong>
+                    <p style="margin: 5px 0 0 0; color: #555; font-size: 0.9rem;">${order.cancellationNote}</p>
+                </div>
+            `;
+        }
+
+        const emailBodyHtml = `
+            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fff8f0;">
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
+                    <img src="cid:logo" alt="Kaviya Crackers Logo" style="height: 70px; border-radius: 8px; margin-bottom: 10px;" />
+                    <h2 style="color: #ff7a00; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
+                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 4px; margin-bottom: 0;">Order Status Update</p>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center;">
+                    <h3 style="margin-top: 0; color: #333; font-size: 1.2rem;">Your Order Status Has Been Updated!</h3>
+                    <div style="display: inline-block; padding: 8px 20px; background-color: ${statusColor}15; color: ${statusColor}; border-radius: 50px; font-weight: bold; font-size: 1.1rem; margin: 10px 0; border: 1px solid ${statusColor}30;">
+                        ${order.status}
+                    </div>
+                    <p style="color: #555; font-size: 0.95rem; margin-top: 15px; line-height: 1.5; text-align: left;">
+                        Dear <strong>${order.customerName || 'Customer'}</strong>,<br><br>
+                        We wanted to let you know that the status of your order has been updated to <strong>${order.status}</strong>.
+                    </p>
+                    ${cancellationHtml}
+                </div>
+                
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerName || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Phone:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerPhone || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Email:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerEmail || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Address:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerAddress || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Items Summary</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa;">
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: left; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Product</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: center; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Qty</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Rate</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="padding: 15px 8px 8px; font-weight: bold; text-align: right; font-size: 1.1rem; border-top: 2px solid #ddd;">Grand Total:</td>
+                                <td style="padding: 15px 8px 8px; font-weight: bold; text-align: right; color: #ff7a00; font-size: 1.1rem; border-top: 2px solid #ddd;">₹${order.totalAmount}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
+                    <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
+                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:+919342758753" style="color: #ff7a00; text-decoration: none;">+91 93427 58753</a> (Vasanth)</p>
+                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #9c9c9c; border-top: 1px solid #eaeaea; padding-top: 15px;">
+                    <p style="margin: 0;">This is an automated enquiry email from Kaviya Crackers Store.</p>
+                </div>
+            </div>
+        `;
+
+        const itemsText = items.map(item => `- ${item.name} | Qty: ${item.quantity} | Rate: ₹${item.rate} | Total: ₹${item.subtotal}`).join('\n');
+        let cancellationText = '';
+        if (order.status === 'Cancelled' && order.cancellationNote) {
+            cancellationText = `Cancellation Reason: ${order.cancellationNote}\n\n`;
+        }
+
+        const emailBodyText = `
+Kaviya Crackers - Order Status Update
+--------------------------------------------
+
+Dear ${order.customerName || 'Customer'},
+Your order status has been updated to: ${order.status}
+
+${cancellationText}Customer Details:
+- Name: ${order.customerName || 'N/A'}
+- Phone: ${order.customerPhone || 'N/A'}
+- Email: ${order.customerEmail || 'N/A'}
+- Address: ${order.customerAddress || 'N/A'}
+
+Items Summary:
+${itemsText}
+
+Grand Total: ₹${order.totalAmount}
+
+--------------------------------------------
+Contact Support:
+- Phone: +91 93427 58753 (Vasanth)
+- Website: www.kaviyacrackers.com
+--------------------------------------------
+Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
+        `.trim();
+
+        const commonHeaders = {
+            'X-Mailer': 'Nodemailer',
+            'Precedence': 'bulk',
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+            'List-Unsubscribe': `<mailto:${smtpUser}?subject=unsubscribe>`
+        };
+
+        const attachments = [{
+            filename: 'kaviya_crackers_logo.jpeg',
+            path: path.join(__dirname, 'assets', 'img', 'kaviya_crackers_logo.jpeg'),
+            cid: 'logo'
+        }];
+
+        // Send to Customer
+        if (order.customerEmail) {
+            await transporter.sendMail({
+                from: `"Kaviya Crackers Store" <${smtpUser}>`,
+                to: order.customerEmail,
+                subject: `🔔 Order status updated to [${order.status}] - Kaviya Crackers`,
+                html: emailBodyHtml,
+                text: emailBodyText,
+                replyTo: sellerEmail || smtpUser,
+                headers: commonHeaders,
+                attachments
+            });
+            console.log(`Status update email successfully sent to customer (${order.customerEmail}) for Order ID: ${order._id}`);
+        }
+    } catch (err) {
+        console.error('Failed to send order status update email:', err);
     }
 }
 
@@ -388,9 +603,33 @@ app.post('/api/data', async (req, res) => {
 // Update specific order status
 app.patch('/api/orders/:id', async (req, res) => {
     try {
-        const { status } = req.body;
-        await Order.findOneAndUpdate({ id: req.params.id }, { status });
-        res.json({ success: true });
+        const { status, cancellationNote } = req.body;
+        const query = mongoose.isValidObjectId(req.params.id)
+            ? { _id: req.params.id }
+            : { id: req.params.id };
+
+        const updatedOrder = await Order.findOneAndUpdate(query, { status, cancellationNote: cancellationNote || '' }, { new: true });
+        if (updatedOrder) {
+            sendStatusUpdateEmail(updatedOrder).catch(e => console.error('Background sendOrderStatusEmail error:', e));
+        }
+        res.json({ success: true, order: updatedOrder });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete specific order/enquiry
+app.delete('/api/orders/:id', async (req, res) => {
+    try {
+        const query = mongoose.isValidObjectId(req.params.id)
+            ? { _id: req.params.id }
+            : { id: req.params.id };
+
+        const deletedOrder = await Order.findOneAndDelete(query);
+        if (!deletedOrder) {
+            return res.status(404).json({ success: false, message: 'Enquiry/Order not found' });
+        }
+        res.json({ success: true, message: 'Enquiry deleted successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

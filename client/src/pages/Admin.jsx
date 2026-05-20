@@ -54,10 +54,34 @@ const Admin = () => {
   };
 
   const handleStatusUpdate = async (id, status) => {
-    const res = await updateOrderStatus(id, status);
+    let cancellationNote = '';
+    if (status === 'Cancelled') {
+      const note = window.prompt("Please enter a note/reason for cancelling this order:");
+      if (note === null) return; // User cancelled the prompt
+      cancellationNote = note.trim();
+    }
+
+    const res = await updateOrderStatus(id, status, cancellationNote);
     if (res.success) {
-      setOrders(orders.map(o => o._id === id ? { ...o, status } : o));
+      setOrders(orders.map(o => o._id === id ? { ...o, status, cancellationNote } : o));
       loadData();
+    }
+  };
+
+  const handleDeleteOrder = async (id) => {
+    if (window.confirm("Are you sure you want to permanently delete this enquiry?")) {
+      try {
+        const res = await api.delete(`/orders/${id}`);
+        if (res.data && res.data.success) {
+          setOrders(orders.filter(o => o._id !== id));
+          loadData();
+        } else {
+          alert(res.data?.message || "Failed to delete enquiry");
+        }
+      } catch (err) {
+        console.error("Delete enquiry error:", err);
+        alert("Failed to delete enquiry");
+      }
     }
   };
 
@@ -225,20 +249,20 @@ const Admin = () => {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 40px; }
     .invoice-container { max-width: 800px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #EAB308; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #FF7A00; }
     .brand { display: flex; align-items: center; gap: 16px; }
-    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #EAB308; object-fit: cover; box-shadow: 0 4px 12px rgba(234, 179, 8,0.15); }
-    .brand-info h1 { color: #EAB308; font-size: 28px; margin-bottom: 4px; }
+    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #FF7A00; object-fit: cover; box-shadow: 0 4px 12px rgba(255, 122, 0, 0.15); }
+    .brand-info h1 { color: #FF7A00; font-size: 28px; margin-bottom: 4px; }
     .brand-info p { color: #888; font-size: 13px; }
     .invoice-meta { text-align: right; }
-    .invoice-meta h2 { color: #EAB308; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
+    .invoice-meta h2 { color: #FF7A00; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
     .invoice-meta p { color: #666; font-size: 13px; line-height: 1.6; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
     .info-box { flex: 1; }
-    .info-box h4 { color: #EAB308; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .info-box h4 { color: #FF7A00; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
     .info-box p { font-size: 13px; color: #555; line-height: 1.7; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    thead th { background: #EAB308; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    thead th { background: #FF7A00; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
     thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
     tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
     tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }
@@ -246,13 +270,14 @@ const Admin = () => {
     .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
     .totals-box { width: 280px; }
     .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #666; border-bottom: 1px solid #f0f0f0; }
-    .totals-row.grand { border-bottom: none; border-top: 2px solid #EAB308; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #EAB308; }
+    .totals-row.grand { border-bottom: none; border-top: 2px solid #FF7A00; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #FF7A00; }
     .footer { text-align: center; padding-top: 30px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
     .footer p { margin-bottom: 4px; }
     .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .status-pending { background: #fff3cd; color: #856404; }
     .status-processing { background: #cce5ff; color: #004085; }
     .status-delivered { background: #d4edda; color: #155724; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
     @media print { body { padding: 20px; } .no-print { display: none !important; } }
   </style>
 </head>
@@ -491,8 +516,8 @@ const Admin = () => {
               <h2 className="fw-bold mb-2">Customer Enquiries</h2>
               <p className="text-muted mb-5">Review and manage festival order enquiries</p>
               
-              <div className="bg-white rounded-5 shadow-sm border-0 overflow-hidden">
-                <table className="table table-hover align-middle mb-0">
+              <div className="bg-white rounded-5 shadow-sm border-0" style={{ overflow: 'visible' }}>
+                <table className="table table-hover align-middle mb-0" style={{ overflow: 'visible' }}>
                   <thead className="bg-light border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Date</th>
@@ -508,7 +533,7 @@ const Admin = () => {
                       <tr><td colSpan="6" className="text-center py-5 text-muted">No enquiries found.</td></tr>
                     ) : (
                       orders.map(order => (
-                        <tr key={order._id}>
+                        <tr key={order._id} style={{ overflow: 'visible' }}>
                           <td className="ps-4 small text-muted lh-1">
                             {new Date(order.date).toLocaleDateString()}<br/>
                             <span style={{fontSize:'0.7rem'}}>{new Date(order.date).toLocaleTimeString()}</span>
@@ -523,20 +548,24 @@ const Admin = () => {
                           </td>
                           <td className="text-center fw-bold text-primary">₹{order.totalAmount}</td>
                           <td className="text-center">
-                            <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm" onClick={() => handleViewOrder(order)}>
+                            <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm me-2" onClick={() => handleViewOrder(order)}>
                               <i className="bi bi-eye me-1"></i>View
                             </button>
+                            <button className="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onClick={() => handleDeleteOrder(order._id)}>
+                              <i className="bi bi-trash me-1"></i>Delete
+                            </button>
                           </td>
-                          <td className="text-end pe-4">
-                            <div className="dropdown">
-                              <button className={`btn btn-sm dropdown-toggle rounded-pill px-3 shadow-sm ${order.status === 'Delivered' ? 'btn-success' : (order.status === 'Processing' ? 'btn-warning text-white' : 'btn-light')}`} 
+                          <td className="text-end pe-4" style={{ overflow: 'visible' }}>
+                            <div className="dropdown" style={{ position: 'relative' }}>
+                              <button className={`btn btn-sm dropdown-toggle rounded-pill px-3 shadow-sm ${order.status === 'Delivered' ? 'btn-success' : (order.status === 'Processing' ? 'btn-warning text-white' : (order.status === 'Cancelled' ? 'btn-danger text-white' : 'btn-light'))}`} 
                                       data-bs-toggle="dropdown">
                                 {order.status}
                               </button>
-                              <ul className="dropdown-menu border-0 shadow rounded-4">
+                              <ul className="dropdown-menu border-0 shadow rounded-4" style={{ zIndex: 1070, position: 'absolute' }}>
                                 <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Pending')}>Pending</button></li>
                                 <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Processing')}>Processing</button></li>
                                 <li><button className="dropdown-item" onClick={() => handleStatusUpdate(order._id, 'Delivered')}>Delivered</button></li>
+                                <li><button className="dropdown-item text-danger fw-bold" onClick={() => handleStatusUpdate(order._id, 'Cancelled')}>Cancelled</button></li>
                               </ul>
                             </div>
                           </td>
@@ -703,7 +732,7 @@ const Admin = () => {
                 <div className="row g-3 mb-4">
                   <div className="col-md-6">
                     <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#EAB308'}}>Customer</h6>
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Customer</h6>
                       <p className="fw-bold mb-1">{selectedOrder.customerName}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{selectedOrder.customerPhone}</p>
                       <p className="small text-muted mb-0"><i className="bi bi-envelope me-1"></i>{selectedOrder.customerEmail}</p>
@@ -711,21 +740,37 @@ const Admin = () => {
                   </div>
                   <div className="col-md-6">
                     <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#EAB308'}}>Delivery</h6>
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Delivery</h6>
                       <p className="small text-muted mb-1"><i className="bi bi-geo-alt me-1"></i>{selectedOrder.customerAddress}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-calendar3 me-1"></i>{new Date(selectedOrder.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       <span className={`badge rounded-pill px-3 py-1 ${
                         selectedOrder.status === 'Delivered' ? 'bg-success' : 
-                        selectedOrder.status === 'Processing' ? 'bg-warning text-dark' : 'bg-secondary'
+                        selectedOrder.status === 'Processing' ? 'bg-warning text-dark' : 
+                        selectedOrder.status === 'Cancelled' ? 'bg-danger text-white' : 'bg-secondary'
                       }`}>{selectedOrder.status}</span>
                     </div>
                   </div>
                 </div>
 
+                {/* Cancellation Note Alert */}
+                {selectedOrder.status === 'Cancelled' && (
+                  <div className="alert alert-danger border-0 rounded-4 p-3 mb-4 shadow-sm animate-fade-in">
+                    <div className="d-flex align-items-start gap-2">
+                      <i className="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+                      <div>
+                        <strong className="text-danger d-block mb-1">Order Cancelled</strong>
+                        <span className="text-muted small">
+                          <strong>Reason:</strong> {selectedOrder.cancellationNote || "No reason specified."}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Items Table */}
                 <div className="bg-white rounded-4 border overflow-hidden shadow-sm">
                   <table className="table table-hover align-middle mb-0">
-                    <thead style={{backgroundColor:'#EAB308'}}>
+                    <thead style={{backgroundColor:'#FF7A00'}}>
                       <tr>
                         <th className="py-3 ps-4 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>#</th>
                         <th className="py-3 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>Item Name</th>
