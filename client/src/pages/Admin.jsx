@@ -249,20 +249,20 @@ const Admin = () => {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 40px; }
     .invoice-container { max-width: 800px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #FF7A00; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #7209B7; }
     .brand { display: flex; align-items: center; gap: 16px; }
-    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #FF7A00; object-fit: cover; box-shadow: 0 4px 12px rgba(255, 122, 0, 0.15); }
-    .brand-info h1 { color: #FF7A00; font-size: 28px; margin-bottom: 4px; }
+    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #7209B7; object-fit: cover; box-shadow: 0 4px 12px rgba(114, 9, 183, 0.15); }
+    .brand-info h1 { color: #7209B7; font-size: 28px; margin-bottom: 4px; }
     .brand-info p { color: #888; font-size: 13px; }
     .invoice-meta { text-align: right; }
-    .invoice-meta h2 { color: #FF7A00; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
+    .invoice-meta h2 { color: #7209B7; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
     .invoice-meta p { color: #666; font-size: 13px; line-height: 1.6; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
     .info-box { flex: 1; }
-    .info-box h4 { color: #FF7A00; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .info-box h4 { color: #7209B7; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
     .info-box p { font-size: 13px; color: #555; line-height: 1.7; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    thead th { background: #FF7A00; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    thead th { background: #7209B7; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
     thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
     tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
     tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }
@@ -270,7 +270,7 @@ const Admin = () => {
     .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
     .totals-box { width: 280px; }
     .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #666; border-bottom: 1px solid #f0f0f0; }
-    .totals-row.grand { border-bottom: none; border-top: 2px solid #FF7A00; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #FF7A00; }
+    .totals-row.grand { border-bottom: none; border-top: 2px solid #7209B7; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #7209B7; }
     .footer { text-align: center; padding-top: 30px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
     .footer p { margin-bottom: 4px; }
     .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
@@ -381,11 +381,11 @@ const Admin = () => {
                 <h3 className="fw-bold mb-4">Admin Access</h3>
                 <form onSubmit={handleLogin}>
                   <div className="form-floating mb-3">
-                    <input type="text" className="form-control rounded-4 border-light bg-light" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required />
+                    <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" required />
                     <label>Username</label>
                   </div>
                   <div className="form-floating mb-3">
-                    <input type="password" className="form-control rounded-4 border-light bg-light" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
+                    <input type="password" className="form-control rounded-4 border-light bg-white-tertiary" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required />
                     <label>Password</label>
                   </div>
                   <button type="submit" className="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-lg hover-scale mt-3">Login Securely</button>
@@ -435,7 +435,7 @@ const Admin = () => {
         </div>
 
         {/* Main Content */}
-        <div className="col-lg-10 offset-lg-2 p-5 bg-light min-vh-100">
+        <div className="col-lg-10 offset-lg-2 p-5 bg-white-tertiary min-vh-100">
           
           {activeSection === 'dashboard' && (
             <div className="admin-section animate-fade-in">
@@ -475,7 +475,7 @@ const Admin = () => {
 
               <div className="bg-white rounded-5 shadow-sm border-0 overflow-hidden">
                 <table className="table table-hover align-middle mb-0">
-                  <thead className="bg-light border-bottom">
+                  <thead className="bg-white-tertiary border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Img</th>
                       <th className="py-3">Product Name</th>
@@ -518,7 +518,7 @@ const Admin = () => {
               
               <div className="bg-white rounded-5 shadow-sm border-0" style={{ overflow: 'visible' }}>
                 <table className="table table-hover align-middle mb-0" style={{ overflow: 'visible' }}>
-                  <thead className="bg-light border-bottom">
+                  <thead className="bg-white-tertiary border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Date</th>
                       <th className="py-3">Customer Info</th>
@@ -621,13 +621,13 @@ const Admin = () => {
                 <form onSubmit={handleSaveProduct}>
                   <div className="mb-3">
                     <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Product Name</label>
-                    <input type="text" className="form-control rounded-4 bg-light border-0 py-2" placeholder="e.g. 10cm Sparklers" required 
+                    <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2" placeholder="e.g. 10cm Sparklers" required 
                            value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
                   </div>
                   <div className="row g-3">
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Category</label>
-                      <select className="form-select rounded-4 bg-light border-0 py-2" required
+                      <select className="form-select rounded-4 bg-white-tertiary border-0 py-2" required
                               value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>
                         <option value="">Select...</option>
                         {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
@@ -635,30 +635,30 @@ const Admin = () => {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Content (e.g. 10 Pcs)</label>
-                      <input type="text" className="form-control rounded-4 bg-light border-0 py-2" required
+                      <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.content} onChange={e => setNewProduct({...newProduct, content: e.target.value})} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Offer Rate (₹)</label>
-                      <input type="number" className="form-control rounded-4 bg-light border-0 py-2" required
+                      <input type="number" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.rate} onChange={e => setNewProduct({...newProduct, rate: e.target.value})} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Original Rate (₹)</label>
-                      <input type="number" className="form-control rounded-4 bg-light border-0 py-2" required
+                      <input type="number" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.originalRate} onChange={e => setNewProduct({...newProduct, originalRate: e.target.value})} />
                     </div>
                     <div className="col-12">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Product Image</label>
                       <div className="d-flex gap-3 align-items-center">
-                        <input type="file" className="form-control rounded-4 bg-light border-0 py-2" 
+                        <input type="file" className="form-control rounded-4 bg-white-tertiary border-0 py-2" 
                                accept="image/*" onChange={e => handleImageUpload(e, 'product')} />
                         {newProduct.image && (
                           <img src={newProduct.image.startsWith('http') ? newProduct.image : `/${newProduct.image}`} 
                                width="40" height="40" className="rounded shadow-sm object-fit-cover" />
                         )}
                       </div>
-                      <input type="text" className="form-control rounded-4 bg-light border-0 py-2 mt-2 small" 
+                      <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2 mt-2 small" 
                              style={{fontSize:'0.7rem'}} placeholder="Or paste image URL/path"
                              value={newProduct.image} onChange={e => setNewProduct({...newProduct, image: e.target.value})} />
                     </div>
@@ -685,20 +685,20 @@ const Admin = () => {
                 <form onSubmit={handleSaveCategory}>
                   <div className="mb-3">
                     <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Category Name</label>
-                    <input type="text" className="form-control rounded-4 bg-light border-0 py-2" placeholder="e.g. Sparklers" required 
+                    <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2" placeholder="e.g. Sparklers" required 
                            value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} />
                   </div>
                   <div className="mb-3">
                     <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Category Image</label>
                     <div className="d-flex gap-3 align-items-center mb-2">
-                      <input type="file" className="form-control rounded-4 bg-light border-0 py-2" 
+                      <input type="file" className="form-control rounded-4 bg-white-tertiary border-0 py-2" 
                              accept="image/*" onChange={e => handleImageUpload(e, 'category')} />
                       {newCategory.image && (
                         <img src={newCategory.image.startsWith('http') ? newCategory.image : `/${newCategory.image}`} 
                              width="40" height="40" className="rounded shadow-sm object-fit-cover" />
                       )}
                     </div>
-                    <input type="text" className="form-control rounded-4 bg-light border-0 py-2 small" 
+                    <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2 small" 
                            style={{fontSize:'0.7rem'}} placeholder="Or paste image URL/path"
                            value={newCategory.image} onChange={e => setNewCategory({...newCategory, image: e.target.value})} />
                   </div>
@@ -731,16 +731,16 @@ const Admin = () => {
                 {/* Customer Info Card */}
                 <div className="row g-3 mb-4">
                   <div className="col-md-6">
-                    <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Customer</h6>
+                    <div className="bg-white-tertiary rounded-4 p-3 h-100">
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#7209B7'}}>Customer</h6>
                       <p className="fw-bold mb-1">{selectedOrder.customerName}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-telephone me-1"></i>{selectedOrder.customerPhone}</p>
                       <p className="small text-muted mb-0"><i className="bi bi-envelope me-1"></i>{selectedOrder.customerEmail}</p>
                     </div>
                   </div>
                   <div className="col-md-6">
-                    <div className="bg-light rounded-4 p-3 h-100">
-                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#FF7A00'}}>Delivery</h6>
+                    <div className="bg-white-tertiary rounded-4 p-3 h-100">
+                      <h6 className="fw-bold text-uppercase small mb-2" style={{fontSize:'0.7rem', color:'#7209B7'}}>Delivery</h6>
                       <p className="small text-muted mb-1"><i className="bi bi-geo-alt me-1"></i>{selectedOrder.customerAddress}</p>
                       <p className="small text-muted mb-1"><i className="bi bi-calendar3 me-1"></i>{new Date(selectedOrder.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                       <span className={`badge rounded-pill px-3 py-1 ${
@@ -770,7 +770,7 @@ const Admin = () => {
                 {/* Items Table */}
                 <div className="bg-white rounded-4 border overflow-hidden shadow-sm">
                   <table className="table table-hover align-middle mb-0">
-                    <thead style={{backgroundColor:'#FF7A00'}}>
+                    <thead style={{backgroundColor:'#7209B7'}}>
                       <tr>
                         <th className="py-3 ps-4 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>#</th>
                         <th className="py-3 text-white" style={{fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.5px'}}>Item Name</th>
@@ -785,7 +785,7 @@ const Admin = () => {
                           <td className="ps-4 text-muted small">{idx + 1}</td>
                           <td className="fw-semibold">{item.name || 'Product'}</td>
                           <td className="text-center">
-                            <span className="badge bg-light text-dark border px-3 py-2 rounded-pill fw-bold">{item.quantity || 0}</span>
+                            <span className="badge bg-white-tertiary text-dark border px-3 py-2 rounded-pill fw-bold">{item.quantity || 0}</span>
                           </td>
                           <td className="text-end text-muted">₹{item.rate || 0}</td>
                           <td className="text-end pe-4 fw-bold text-primary">₹{item.subtotal || ((item.rate || 0) * (item.quantity || 0))}</td>

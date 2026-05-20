@@ -31,10 +31,10 @@ const Navbar = () => {
             <img src={logo} alt="Kaviya Crackers Logo" height="40" className="me-2 rounded-2 d-md-none" />
             <img src={logo} alt="Kaviya Crackers Logo" height="70" className="me-3 rounded-2 d-none d-md-block" />
             <div className="d-flex flex-column justify-content-center lh-1 overflow-hidden">
-              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#FF7A00', fontSize: '0.85rem' }}>
+              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#7209B7', fontSize: '0.85rem' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h5>
-              <h4 className="fw-bold mb-0 d-none d-md-block" style={{ color: '#FF7A00', letterSpacing: '-0.5px' }}>
+              <h4 className="fw-bold mb-0 d-none d-md-block" style={{ color: '#7209B7', letterSpacing: '-0.5px' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h4>
               <div className="fw-bold text-dark mt-1 d-md-none" style={{ fontSize: '0.6rem' }}>
@@ -50,9 +50,9 @@ const Navbar = () => {
           {/* Mobile Actions: Cart + Hamburger */}
           <div className="d-flex align-items-center gap-1 gap-md-2 order-lg-last">
             <button className="nav-link position-relative p-2 border-0 bg-transparent" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
-              <i className="bi bi-cart3 fs-4 text-primary"></i>
+              <i className="bi bi-cart3 fs-4" style={{ color: '#7209B7' }}></i>
               {cartCount > 0 && (
-                <span className="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '0.6rem' }}>
+                <span className="position-absolute top-1 start-100 translate-middle badge rounded-pill" style={{ background: 'linear-gradient(45deg, #7209B7, #3A0CA3)', fontSize: '0.6rem' }}>
                   {cartCount}
                 </span>
               )}
@@ -64,7 +64,7 @@ const Navbar = () => {
 
           {/* Navigation */}
           <div className="offcanvas offcanvas-end" tabIndex="-1" id="offcanvasNavbar">
-            <div className="offcanvas-header bg-light border-bottom">
+            <div className="offcanvas-header bg-white-tertiary border-bottom">
               <div className="d-flex align-items-center">
                 <img src={logo} alt="Logo" height="40" className="me-2 rounded-2" />
                 <h5 className="offcanvas-title fw-bold text-primary">Kaviya <span className="text-dark">Crackers</span></h5>
@@ -122,7 +122,7 @@ const Navbar = () => {
                       <h6 className="fw-bold mb-1 small">{item.name}</h6>
                       <div className="fw-bold text-muted extra-small mb-1 lh-1">{item.content}</div>
                       <div className="text-primary fw-bold">₹{item.rate}</div>
-                      <div className="d-flex align-items-center mt-2 bg-light rounded-pill px-2 py-1" style={{ width: 'fit-content' }}>
+                      <div className="d-flex align-items-center mt-2 bg-white-tertiary rounded-pill px-2 py-1" style={{ width: 'fit-content' }}>
                         <button className="btn btn-sm btn-link p-0 text-decoration-none fw-bold" onClick={() => updateCart(item.id, -1)}>−</button>
                         <span className="mx-3 small fw-bold">{item.quantity}</span>
                         <button className="btn btn-sm btn-link p-0 text-decoration-none fw-bold" onClick={() => updateCart(item.id, 1)}>+</button>
@@ -134,7 +134,7 @@ const Navbar = () => {
                   </div>
                 ))}
               </div>
-              <div className="p-4 bg-light border-top mt-auto">
+              <div className="p-4 bg-white-tertiary border-top mt-auto">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h5 className="fw-bold mb-0">Total:</h5>
                   <h4 className="fw-bold text-primary mb-0">₹{totalAmount}</h4>

@@ -93,7 +93,7 @@ const Home = () => {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-5 bg-light-cream">
+      <section id="about" className="py-5 bg-white-tertiary-cream">
         <div className="container py-5">
           <div className="row align-items-center g-5">
             <div className="col-lg-5 order-2 order-lg-1" data-aos="fade-right">
@@ -240,7 +240,7 @@ const Home = () => {
               { icon: 'headset', title: 'Fast Support', text: 'Quick response team for all your queries.', color: 'success' }
             ].map((item, idx) => (
               <div className="col-lg-3 col-md-6" key={idx} data-aos="fade-up" data-aos-delay={idx * 100}>
-                <div className="p-4 rounded-4 bg-light text-center h-100 transition-up shadow-sm">
+                <div className="p-4 rounded-4 bg-white-tertiary text-center h-100 transition-up shadow-sm">
                   <i className={`bi bi-${item.icon} fs-1 text-${item.color} mb-3 d-block`}></i>
                   <h5 className="fw-bold">{item.title}</h5>
                   <p className="small text-muted mb-0">{item.text}</p>
@@ -336,7 +336,7 @@ const Home = () => {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-5 bg-light-cream">
+      <section id="contact" className="py-5 bg-white-tertiary-cream">
         <div className="container py-5">
           <div className="row g-5">
             <div className="col-lg-5" data-aos="fade-right">
@@ -361,7 +361,7 @@ const Home = () => {
               </div>
               <div className="mt-5 p-4 bg-white rounded-5 shadow-sm">
                 <h5 className="fw-bold mb-3">Store Location</h5>
-                <div className="map-placeholder bg-light rounded-4 d-flex align-items-center justify-content-center border" style={{ height: '200px' }}>
+                <div className="map-placeholder bg-white-tertiary rounded-4 d-flex align-items-center justify-content-center border" style={{ height: '200px' }}>
                   <div className="text-center opacity-50">
                     <i className="bi bi-map fs-1 text-muted"></i>
                     <p className="small text-muted mt-2">Interactive Map Loading...</p>
@@ -376,19 +376,19 @@ const Home = () => {
                   <div className="row g-3">
                     <div className="col-md-6">
                       <div className="form-floating mb-3">
-                        <input type="text" className="form-control rounded-4 border-light bg-light" id="name" placeholder="Name" required />
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="name" placeholder="Name" required />
                         <label htmlFor="name">Your Name</label>
                       </div>
                     </div>
                     <div className="col-md-6">
                       <div className="form-floating mb-3">
-                        <input type="tel" className="form-control rounded-4 border-light bg-light" id="phone" placeholder="Phone" required />
+                        <input type="tel" className="form-control rounded-4 border-light bg-white-tertiary" id="phone" placeholder="Phone" required />
                         <label htmlFor="phone">Phone Number</label>
                       </div>
                     </div>
                     <div className="col-12">
                       <div className="form-floating mb-3">
-                        <select className="form-select rounded-4 border-light bg-light" id="interest">
+                        <select className="form-select rounded-4 border-light bg-white-tertiary" id="interest">
                           <option value="Retail">Retail Purchase</option>
                           <option value="Wholesale">Wholesale Enquiry</option>
                           <option value="Combo">Festival Combo Packs</option>
@@ -399,7 +399,7 @@ const Home = () => {
                     </div>
                     <div className="col-12">
                       <div className="form-floating mb-3">
-                        <textarea className="form-control rounded-4 border-light bg-light" style={{ height: '150px' }} placeholder="Message" id="message"></textarea>
+                        <textarea className="form-control rounded-4 border-light bg-white-tertiary" style={{ height: '150px' }} placeholder="Message" id="message"></textarea>
                         <label htmlFor="message">Message (Optional)</label>
                       </div>
                     </div>

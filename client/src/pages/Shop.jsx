@@ -280,7 +280,7 @@ const Shop = () => {
                 </div>
 
                 {/* Cart Summary Column */}
-                <div className="col-lg-5 bg-light border-start p-4 p-md-5 d-flex flex-column">
+                <div className="col-lg-5 bg-white-tertiary border-start p-4 p-md-5 d-flex flex-column">
                   <div className="d-flex justify-content-between align-items-center mb-4">
                     <h5 className="fw-bold mb-0">Order Summary</h5>
                     <button type="button" className="btn-close d-none d-lg-block" onClick={() => setShowEnquiryModal(false)}></button>
@@ -327,7 +327,7 @@ const Shop = () => {
               <h3 className="fw-bold mb-2">Enquiry Sent!</h3>
               <p className="text-muted mb-3">Thank you. Our team will contact you shortly.</p>
               
-              <div className="alert border-0 rounded-4 p-3 small text-start mt-2" style={{ backgroundColor: 'rgba(255, 122, 0, 0.08)', color: '#FF7A00' }}>
+              <div className="alert border-0 rounded-4 p-3 small text-start mt-2" style={{ backgroundColor: 'rgba(114, 9, 183, 0.08)', color: '#7209B7' }}>
                 <div className="d-flex gap-2">
                   <i className="bi bi-envelope-fill fs-5 mt-0"></i>
                   <div>

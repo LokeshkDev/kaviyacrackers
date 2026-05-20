@@ -12,10 +12,14 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-function r2Env(name) {
+function cleanEnv(name) {
     const v = process.env[name];
     if (v == null) return '';
     return String(v).trim().replace(/^["']|["']$/g, '');
+}
+
+function r2Env(name) {
+    return cleanEnv(name);
 }
 
 function isR2UploadsEnabled() {
@@ -114,11 +118,11 @@ const OrderSchema = new mongoose.Schema({
 const Order = mongoose.model('Order', OrderSchema);
 
 async function sendOrderEmails(order) {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT || 587;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const sellerEmail = process.env.SELLER_EMAIL;
+    const smtpHost = cleanEnv('SMTP_HOST');
+    const smtpPort = cleanEnv('SMTP_PORT') || '587';
+    const smtpUser = cleanEnv('SMTP_USER');
+    const smtpPass = cleanEnv('SMTP_PASS');
+    const sellerEmail = cleanEnv('SELLER_EMAIL');
 
     // Check if configuration is missing
     if (!smtpHost || !smtpUser || !smtpPass) {
@@ -134,6 +138,9 @@ async function sendOrderEmails(order) {
             auth: {
                 user: smtpUser,
                 pass: smtpPass
+            },
+            tls: {
+                rejectUnauthorized: false
             }
         });
 
@@ -157,8 +164,12 @@ async function sendOrderEmails(order) {
                 </div>
                 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
-                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Order & Customer Details</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Order ID:</strong></td>
+                            <td style="padding: 4px 0; color: #333; font-family: monospace;">${order._id || 'N/A'}</td>
+                        </tr>
                         <tr>
                             <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
                             <td style="padding: 4px 0; color: #333;">${order.customerName || 'N/A'}</td>
@@ -217,6 +228,8 @@ async function sendOrderEmails(order) {
         const emailBodyText = `
 Kaviya Crackers - Order Enquiry Confirmation
 --------------------------------------------
+
+Order ID: ${order._id || 'N/A'}
 
 Customer Details:
 - Name: ${order.customerName || 'N/A'}
@@ -286,11 +299,11 @@ Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
 }
 
 async function sendStatusUpdateEmail(order) {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT || 587;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-    const sellerEmail = process.env.SELLER_EMAIL;
+    const smtpHost = cleanEnv('SMTP_HOST');
+    const smtpPort = cleanEnv('SMTP_PORT') || '587';
+    const smtpUser = cleanEnv('SMTP_USER');
+    const smtpPass = cleanEnv('SMTP_PASS');
+    const sellerEmail = cleanEnv('SELLER_EMAIL');
 
     // Check if configuration is missing
     if (!smtpHost || !smtpUser || !smtpPass) {
@@ -306,6 +319,9 @@ async function sendStatusUpdateEmail(order) {
             auth: {
                 user: smtpUser,
                 pass: smtpPass
+            },
+            tls: {
+                rejectUnauthorized: false
             }
         });
 
@@ -360,8 +376,12 @@ async function sendStatusUpdateEmail(order) {
                 </div>
                 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
-                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Order & Customer Details</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Order ID:</strong></td>
+                            <td style="padding: 4px 0; color: #333; font-family: monospace;">${order._id || 'N/A'}</td>
+                        </tr>
                         <tr>
                             <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
                             <td style="padding: 4px 0; color: #333;">${order.customerName || 'N/A'}</td>
@@ -429,7 +449,9 @@ Kaviya Crackers - Order Status Update
 Dear ${order.customerName || 'Customer'},
 Your order status has been updated to: ${order.status}
 
-${cancellationText}Customer Details:
+${cancellationText}Order ID: ${order._id || 'N/A'}
+
+Customer Details:
 - Name: ${order.customerName || 'N/A'}
 - Phone: ${order.customerPhone || 'N/A'}
 - Email: ${order.customerEmail || 'N/A'}
