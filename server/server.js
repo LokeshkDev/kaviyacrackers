@@ -167,8 +167,8 @@ async function sendOrderEmails(order) {
                     <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Order & Customer Details</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <tr>
-                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Order ID:</strong></td>
-                            <td style="padding: 4px 0; color: #333; font-family: monospace;">${order._id || 'N/A'}</td>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Invoice #:</strong></td>
+                            <td style="padding: 4px 0; color: #333; font-family: monospace; font-weight: bold;">${order._id ? 'KAV-' + String(order._id).slice(-6).toUpperCase() : 'N/A'}</td>
                         </tr>
                         <tr>
                             <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
@@ -229,7 +229,7 @@ async function sendOrderEmails(order) {
 Kaviya Crackers - Order Enquiry Confirmation
 --------------------------------------------
 
-Order ID: ${order._id || 'N/A'}
+Invoice #: ${order._id ? 'KAV-' + String(order._id).slice(-6).toUpperCase() : 'N/A'}
 
 Customer Details:
 - Name: ${order.customerName || 'N/A'}
@@ -379,8 +379,8 @@ async function sendStatusUpdateEmail(order) {
                     <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Order & Customer Details</h3>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <tr>
-                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Order ID:</strong></td>
-                            <td style="padding: 4px 0; color: #333; font-family: monospace;">${order._id || 'N/A'}</td>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Invoice #:</strong></td>
+                            <td style="padding: 4px 0; color: #333; font-family: monospace; font-weight: bold;">${order._id ? 'KAV-' + String(order._id).slice(-6).toUpperCase() : 'N/A'}</td>
                         </tr>
                         <tr>
                             <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
@@ -449,7 +449,7 @@ Kaviya Crackers - Order Status Update
 Dear ${order.customerName || 'Customer'},
 Your order status has been updated to: ${order.status}
 
-${cancellationText}Order ID: ${order._id || 'N/A'}
+${cancellationText}Invoice #: ${order._id ? 'KAV-' + String(order._id).slice(-6).toUpperCase() : 'N/A'}
 
 Customer Details:
 - Name: ${order.customerName || 'N/A'}
