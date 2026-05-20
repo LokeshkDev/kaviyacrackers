@@ -131,7 +131,12 @@ const Shop = () => {
               <tr>
                 <th className="ps-2 text-center col-img d-none d-md-table-cell">Img</th>
                 <th className="px-1 px-md-3">Product Details</th>
-                <th className="text-center col-rate">Rate</th>
+                <th className="text-center col-rate px-1 px-md-3">
+                  <div className="rate-header-container">
+                    <span className="rate-title">Rate</span>
+                    <span className="rate-offer-badge">80% Offer</span>
+                  </div>
+                </th>
                 <th className="text-center col-qty">Qty</th>
                 <th className="text-end pe-2 pe-md-4 col-total">Total</th>
               </tr>
