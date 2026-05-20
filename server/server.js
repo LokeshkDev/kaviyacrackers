@@ -6,6 +6,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
@@ -110,6 +111,159 @@ const OrderSchema = new mongoose.Schema({
     status: { type: String, default: 'Pending' }
 });
 const Order = mongoose.model('Order', OrderSchema);
+
+async function sendOrderEmails(order) {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT || 587;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const sellerEmail = process.env.SELLER_EMAIL;
+
+    // Check if configuration is missing
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('Mailer Warning: SMTP environment variables (SMTP_HOST, SMTP_USER, SMTP_PASS) are not configured. Skipping email sending.');
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: Number(smtpPort),
+            secure: Number(smtpPort) === 465, // true for port 465, false for other ports
+            auth: {
+                user: smtpUser,
+                pass: smtpPass
+            }
+        });
+
+        // Format items table for HTML
+        const items = Array.isArray(order.items) ? order.items : [];
+        const itemsHtml = items.map(item => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${item.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.rate}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.subtotal}</td>
+            </tr>
+        `).join('');
+
+        const emailBodyHtml = `
+            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fdfbf0;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #eab308; margin-top: 10px; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
+                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 2px;">Order Enquiry Confirmation</p>
+                </div>
+                
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+                    <h3 style="border-bottom: 2px solid #eab308; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Customer Details</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerName || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Phone:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerPhone || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Email:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerEmail || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 4px 0; color: #6c757d;"><strong>Address:</strong></td>
+                            <td style="padding: 4px 0; color: #333;">${order.customerAddress || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+                    <h3 style="border-bottom: 2px solid #eab308; padding-bottom: 8px; margin-top: 0; color: #1a1a1a; font-size: 1.05rem;">Items Summary</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="background-color: #f8f9fa;">
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: left; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Product</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: center; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Qty</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Rate</th>
+                                <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right; color: #6c757d; font-size: 0.8rem; text-transform: uppercase;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="padding: 15px 8px 8px; font-weight: bold; text-align: right; font-size: 1.1rem; border-top: 2px solid #ddd;">Grand Total:</td>
+                                <td style="padding: 15px 8px 8px; font-weight: bold; text-align: right; color: #eab308; font-size: 1.1rem; border-top: 2px solid #ddd;">₹${order.totalAmount}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #9c9c9c; border-top: 1px solid #eaeaea; padding-top: 15px;">
+                    <p style="margin: 0;">This is an automated enquiry email from Kaviya Crackers Store.</p>
+                </div>
+            </div>
+        `;
+
+        const itemsText = items.map(item => `- ${item.name} | Qty: ${item.quantity} | Rate: ₹${item.rate} | Total: ₹${item.subtotal}`).join('\n');
+        const emailBodyText = `
+Kaviya Crackers - Order Enquiry Confirmation
+--------------------------------------------
+
+Customer Details:
+- Name: ${order.customerName || 'N/A'}
+- Phone: ${order.customerPhone || 'N/A'}
+- Email: ${order.customerEmail || 'N/A'}
+- Address: ${order.customerAddress || 'N/A'}
+
+Items Summary:
+${itemsText}
+
+Grand Total: ₹${order.totalAmount}
+
+--------------------------------------------
+Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
+        `.trim();
+
+        const commonHeaders = {
+            'X-Mailer': 'Nodemailer',
+            'Precedence': 'bulk',
+            'X-Auto-Response-Suppress': 'OOF, AutoReply',
+            'List-Unsubscribe': `<mailto:${smtpUser}?subject=unsubscribe>`
+        };
+
+        // Send to Seller
+        if (sellerEmail) {
+            await transporter.sendMail({
+                from: `"Kaviya Crackers Store" <${smtpUser}>`,
+                to: sellerEmail,
+                subject: `🔔 New Order Enquiry from ${order.customerName}`,
+                html: emailBodyHtml,
+                text: emailBodyText,
+                replyTo: order.customerEmail || smtpUser,
+                headers: commonHeaders
+            });
+            console.log(`Email successfully sent to seller (${sellerEmail})`);
+        }
+
+        // Send to Customer
+        if (order.customerEmail) {
+            await transporter.sendMail({
+                from: `"Kaviya Crackers Store" <${smtpUser}>`,
+                to: order.customerEmail,
+                subject: `🎆 Your Kaviya Crackers Enquiry Confirmation`,
+                html: emailBodyHtml,
+                text: emailBodyText,
+                replyTo: sellerEmail || smtpUser,
+                headers: commonHeaders
+            });
+            console.log(`Email successfully sent to customer (${order.customerEmail})`);
+        }
+
+    } catch (err) {
+        console.error('Failed to send order emails:', err);
+    }
+}
 
 const SettingSchema = new mongoose.Schema({
     key: String,
@@ -247,6 +401,10 @@ app.post('/api/orders', async (req, res) => {
     try {
         const newOrder = new Order(req.body);
         await newOrder.save();
+
+        // Fire-and-forget sending emails in background to prevent API blocking
+        sendOrderEmails(newOrder).catch(e => console.error('Background sendOrderEmails error:', e));
+
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
