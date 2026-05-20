@@ -643,16 +643,26 @@ app.patch('/api/orders/:id', async (req, res) => {
 // Delete specific order/enquiry
 app.delete('/api/orders/:id', async (req, res) => {
     try {
-        const query = mongoose.isValidObjectId(req.params.id)
-            ? { _id: req.params.id }
-            : { id: req.params.id };
+        const id = req.params.id.trim();
+        let query = {};
+        
+        if (mongoose.isValidObjectId(id)) {
+            query = { _id: id };
+        } else {
+            query = { id: id };
+        }
 
+        console.log(`Attempting to delete order with query:`, query);
         const deletedOrder = await Order.findOneAndDelete(query);
+        
         if (!deletedOrder) {
+            console.log(`Order not found for deletion. ID: ${id}`);
             return res.status(404).json({ success: false, message: 'Enquiry/Order not found' });
         }
-        res.json({ success: true, message: 'Enquiry deleted successfully' });
+        
+        res.json({ success: true, message: 'Enquiry deleted successfully', order: deletedOrder });
     } catch (err) {
+        console.error('Delete order error:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -89,7 +89,7 @@ const Admin = () => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
         const nextProducts = products.filter((p) => String(p._id) !== String(id));
-        await api.post('/data', { products: nextProducts, categories, orders });
+        await api.post('/data', { products: nextProducts });
         loadData();
       } catch (err) {
         alert("Failed to delete product");
@@ -120,7 +120,7 @@ const Admin = () => {
         const maxId = products.length ? Math.max(...products.map((p) => p.id || 0), 0) : 0;
         nextProducts = [...products, { id: maxId + 1, ...payload }];
       }
-      await api.post('/data', { products: nextProducts, categories, orders });
+      await api.post('/data', { products: nextProducts });
       setShowProductModal(false);
       setEditingProduct(null);
       setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '' });
@@ -159,7 +159,7 @@ const Admin = () => {
           { name: newCategory.name, image: newCategory.image || '', link: 'shop.html' },
         ];
       }
-      await api.post('/data', { products, categories: nextCategories, orders });
+      await api.post('/data', { categories: nextCategories });
       setShowCategoryModal(false);
       setEditingCategory(null);
       setNewCategory({ name: '', image: '' });
@@ -173,7 +173,7 @@ const Admin = () => {
     if (window.confirm("Are you sure you want to delete this category? This might affect products in this category.")) {
       try {
         const nextCategories = categories.filter((c) => String(c._id) !== String(id));
-        await api.post('/data', { products, categories: nextCategories, orders });
+        await api.post('/data', { categories: nextCategories });
         loadData();
       } catch (err) {
         alert("Failed to delete category");
