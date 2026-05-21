@@ -6,20 +6,32 @@ const CartContext = createContext();
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState({});
   const [products, setProducts] = useState([]);
+  const [settings, setSettings] = useState({ phone: '', whatsapp: '', email: '', address: '' });
+
+  const loadData = async () => {
+    try {
+      const response = await api.get('/data');
+      if (response.data) {
+        if (response.data.products) setProducts(response.data.products);
+        if (response.data.settings) setSettings(response.data.settings);
+      }
+    } catch (error) {
+      console.error('Failed to load data in CartContext:', error);
+    }
+  };
 
   useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const response = await api.get('/data');
-        if (response.data && response.data.products) {
-          setProducts(response.data.products);
-        }
-      } catch (error) {
-        console.error('Failed to load products in CartContext:', error);
-      }
-    };
-    loadProducts();
+    loadData();
   }, []);
+
+  const refreshSettings = async () => {
+    try {
+      const res = await api.get('/settings');
+      if (res.data) setSettings(res.data);
+    } catch (e) {
+      console.error('Failed to refresh settings', e);
+    }
+  };
 
   const cartCount = useMemo(() => {
     return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
@@ -39,7 +51,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = () => setCart({});
 
   return (
-    <CartContext.Provider value={{ cart, cartCount, updateCart, clearCart, products }}>
+    <CartContext.Provider value={{ cart, cartCount, updateCart, clearCart, products, settings, refreshSettings }}>
       {children}
     </CartContext.Provider>
   );

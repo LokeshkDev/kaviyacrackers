@@ -232,9 +232,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const whatsappBtn = document.createElement('button');
                 whatsappBtn.className = 'btn btn-success rounded-pill mt-3 w-100';
                 whatsappBtn.innerHTML = '<i class="bi bi-whatsapp me-2"></i> Send to WhatsApp';
-                whatsappBtn.onclick = () => {
+                whatsappBtn.onclick = async () => {
+                    let phoneStr = '919342758753';
+                    try {
+                        const sRes = await fetch('/api/settings');
+                        const sData = await sRes.json();
+                        const rawNum = sData.whatsapp || sData.phone;
+                        if (rawNum) phoneStr = rawNum.replace(/\D/g, '');
+                    } catch(e) {}
                     const message = encodeURIComponent(`New Order ${order.id}\nCustomer: ${order.customer.name}\nTotal: ₹${order.total}\nPlease confirm my order!`);
-                    window.open(`https://wa.me/919342758753?text=${message}`, '_blank');
+                    window.open(`https://wa.me/${phoneStr}?text=${message}`, '_blank');
                 };
                 document.querySelector('#successModal .modal-body').appendChild(whatsappBtn);
             } else {

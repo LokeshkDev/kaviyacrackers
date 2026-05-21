@@ -30,6 +30,82 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update Header Cart Count globally
     updateGlobalCartCount();
+
+    // Fetch and inject settings
+    fetch('/api/settings')
+        .then(res => res.json())
+        .then(settings => {
+            const addressEl = document.getElementById('contact-address');
+            const phoneEl = document.getElementById('contact-phone');
+            const whatsappEl = document.getElementById('contact-whatsapp');
+            const emailEl = document.getElementById('contact-email');
+            
+            if (addressEl && settings.address) addressEl.textContent = settings.address;
+            if (phoneEl && settings.phone) phoneEl.textContent = settings.phone;
+            if (whatsappEl && (settings.whatsapp || settings.phone)) {
+                whatsappEl.textContent = settings.whatsapp || settings.phone;
+            }
+            if (emailEl && settings.email) emailEl.textContent = settings.email;
+
+            // Update WhatsApp links dynamically
+            const whatsappNum = settings.whatsapp || settings.phone || '919342758753';
+            const cleanWhatsapp = whatsappNum.replace(/\D/g, '');
+            const whatsappLinks = document.querySelectorAll('a[href*="wa.me"], .social-sidebar .whatsapp');
+            whatsappLinks.forEach(link => {
+                link.href = `https://wa.me/${cleanWhatsapp}`;
+            });
+
+            // Update call links dynamically
+            const phoneNum = settings.phone || '+91 93427 58753';
+            const cleanPhone = phoneNum.replace(/\s+/g, '');
+            const callLinks = document.querySelectorAll('a[href^="tel:"]');
+            callLinks.forEach(link => {
+                link.href = `tel:${cleanPhone}`;
+            });
+        })
+        .catch(err => console.error('Error fetching settings:', err));
+
+    // Handle Contact Form Submission
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = contactForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            submitBtn.disabled = true;
+
+            const payload = {
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                interest: document.getElementById('interest').value,
+                message: document.getElementById('message') ? document.getElementById('message').value : ''
+            };
+
+            try {
+                const response = await fetch('/api/contact', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Message sent successfully!');
+                    contactForm.reset();
+                } else {
+                    alert('Failed to send message: ' + (result.message || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('An error occurred. Please try again later.');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
 });
 
 // Color palette for category cards

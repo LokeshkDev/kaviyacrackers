@@ -56,7 +56,7 @@ const Footer = () => {
         </div>
         <hr className="my-5 opacity-10" />
         <div className="text-center text-white-50 small">
-          <p className="mb-0">&copy; 2026 Kaviya CRACKERS. All Rights Reserved. Designed for Premium Celebrations.</p>
+          <p className="mb-0">&copy; 2026 Kaviya CRACKERS. All Rights Reserved to Kaviya Crackers, Sivakasi.</p>
         </div>
       </div>
     </footer>

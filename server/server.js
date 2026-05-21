@@ -117,12 +117,137 @@ const OrderSchema = new mongoose.Schema({
 });
 const Order = mongoose.model('Order', OrderSchema);
 
+const AdminUserSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true }
+});
+const AdminUser = mongoose.model('AdminUser', AdminUserSchema);
+
+const SettingSchema = new mongoose.Schema({
+    key: String,
+    value: mongoose.Schema.Types.Mixed
+});
+const Setting = mongoose.model('Setting', SettingSchema);
+
+async function getContactSettings() {
+    try {
+        const settings = await Setting.find({ key: { $in: ['phone', 'whatsapp', 'email', 'address'] } });
+        const map = {};
+        settings.forEach(s => map[s.key] = s.value);
+        return {
+            phone: map.phone || cleanEnv('SELLER_PHONE') || '+91 93427 58753',
+            whatsapp: map.whatsapp || cleanEnv('SELLER_WHATSAPP') || '919342758753',
+            email: map.email || cleanEnv('SELLER_EMAIL') || 'kaviyacrackers2024@gmail.com',
+            address: map.address || cleanEnv('SELLER_ADDRESS') || 'Kaviya Crackers, Sivakasi'
+        };
+    } catch (err) {
+        console.error('Error fetching contact settings:', err);
+        return {
+            phone: '+91 93427 58753',
+            whatsapp: '919342758753',
+            email: 'kaviyacrackers2024@gmail.com',
+            address: 'Kaviya Crackers, Sivakasi'
+        };
+    }
+}
+
+async function sendContactEmails({ name, phone, email, interest, message }) {
+    const smtpHost = cleanEnv('SMTP_HOST');
+    const smtpPort = cleanEnv('SMTP_PORT') || '587';
+    const smtpUser = cleanEnv('SMTP_USER');
+    const smtpPass = cleanEnv('SMTP_PASS');
+    const settings = await getContactSettings();
+    const sellerEmail = settings.email;
+    const sellerPhone = settings.phone;
+    const sellerAddress = settings.address;
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('Mailer Warning: SMTP not configured. Skipping contact emails.');
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: Number(smtpPort),
+            secure: Number(smtpPort) === 465,
+            auth: { user: smtpUser, pass: smtpPass },
+            tls: { rejectUnauthorized: false }
+        });
+
+        const emailBodyHtml = (title, intro) => \`
+            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fff8f0;">
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
+                    <img src="cid:logo" alt="Kaviya Crackers Logo" style="height: 70px; border-radius: 8px; margin-bottom: 10px;" />
+                    <h2 style="color: #ff7a00; margin: 0; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
+                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 4px; margin-bottom: 0;">\${title}</p>
+                </div>
+                
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+                    <p style="color: #333; margin-top: 0;">\${intro}</p>
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Contact Details</h3>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr><td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td><td style="padding: 4px 0; color: #333;">\${name}</td></tr>
+                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Phone:</strong></td><td style="padding: 4px 0; color: #333;">\${phone}</td></tr>
+                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Email:</strong></td><td style="padding: 4px 0; color: #333;">\${email || 'N/A'}</td></tr>
+                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Interest:</strong></td><td style="padding: 4px 0; color: #333;">\${interest || 'General'}</td></tr>
+                    </table>
+                    
+                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Message</h3>
+                    <p style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #333; font-size: 0.95rem; line-height: 1.5; margin: 0; white-space: pre-wrap;">\${message || 'No message provided.'}</p>
+                </div>
+
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
+                    <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
+                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
+                    <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
+                    <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
+                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
+                </div>
+            </div>
+        \`;
+
+        const attachments = [{ filename: 'kaviya_crackers_logo.jpeg', path: path.join(__dirname, 'assets', 'img', 'kaviya_crackers_logo.jpeg'), cid: 'logo' }];
+
+        // Send to Seller
+        if (sellerEmail) {
+            await transporter.sendMail({
+                from: \`"Kaviya Crackers Store" <\${smtpUser}>\`,
+                to: sellerEmail,
+                subject: \`📩 New Contact Enquiry from \${name}\`,
+                html: emailBodyHtml('New Contact Enquiry', \`You have received a new contact inquiry from <strong>\${name}</strong>.\`),
+                replyTo: email || smtpUser,
+                attachments
+            });
+            console.log(\`Contact email sent to seller (\${sellerEmail})\`);
+        }
+
+        // Send to Customer
+        if (email) {
+            await transporter.sendMail({
+                from: \`"Kaviya Crackers Store" <\${smtpUser}>\`,
+                to: email,
+                subject: \`🎆 We received your message - Kaviya Crackers\`,
+                html: emailBodyHtml('Contact Inquiry Received', \`Dear <strong>\${name}</strong>,<br><br>Thank you for reaching out to us. We have received your message and will get back to you shortly. Here is a copy of your inquiry:\`),
+                replyTo: sellerEmail || smtpUser,
+                attachments
+            });
+            console.log(\`Contact confirmation sent to customer (\${email})\`);
+        }
+    } catch (err) {
+        console.error('Failed to send contact emails:', err);
+    }
+}
+
 async function sendOrderEmails(order) {
     const smtpHost = cleanEnv('SMTP_HOST');
     const smtpPort = cleanEnv('SMTP_PORT') || '587';
     const smtpUser = cleanEnv('SMTP_USER');
     const smtpPass = cleanEnv('SMTP_PASS');
-    const sellerEmail = cleanEnv('SELLER_EMAIL');
+    const settings = await getContactSettings();
+    const sellerEmail = settings.email;
+    const sellerPhone = settings.phone;
+    const sellerAddress = settings.address;
 
     // Check if configuration is missing
     if (!smtpHost || !smtpUser || !smtpPass) {
@@ -214,7 +339,9 @@ async function sendOrderEmails(order) {
 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
                     <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
-                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:+919342758753" style="color: #ff7a00; text-decoration: none;">+91 93427 58753</a> (Vasanth)</p>
+                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
+                    <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
+                    <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
                     <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
                 </div>
 
@@ -244,7 +371,9 @@ Grand Total: ₹${order.totalAmount}
 
 --------------------------------------------
 Contact Support:
-- Phone: +91 93427 58753 (Vasanth)
+- Phone: \${sellerPhone}
+- Email: \${sellerEmail}
+- Address: \${sellerAddress}
 - Website: www.kaviyacrackers.com
 --------------------------------------------
 Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
@@ -303,7 +432,10 @@ async function sendStatusUpdateEmail(order) {
     const smtpPort = cleanEnv('SMTP_PORT') || '587';
     const smtpUser = cleanEnv('SMTP_USER');
     const smtpPass = cleanEnv('SMTP_PASS');
-    const sellerEmail = cleanEnv('SELLER_EMAIL');
+    const settings = await getContactSettings();
+    const sellerEmail = settings.email;
+    const sellerPhone = settings.phone;
+    const sellerAddress = settings.address;
 
     // Check if configuration is missing
     if (!smtpHost || !smtpUser || !smtpPass) {
@@ -426,7 +558,9 @@ async function sendStatusUpdateEmail(order) {
 
                 <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
                     <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
-                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:+919342758753" style="color: #ff7a00; text-decoration: none;">+91 93427 58753</a> (Vasanth)</p>
+                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
+                    <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
+                    <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
                     <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
                 </div>
 
@@ -464,7 +598,9 @@ Grand Total: ₹${order.totalAmount}
 
 --------------------------------------------
 Contact Support:
-- Phone: +91 93427 58753 (Vasanth)
+- Phone: \${sellerPhone}
+- Email: \${sellerEmail}
+- Address: \${sellerAddress}
 - Website: www.kaviyacrackers.com
 --------------------------------------------
 Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
@@ -502,11 +638,7 @@ Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
     }
 }
 
-const SettingSchema = new mongoose.Schema({
-    key: String,
-    value: mongoose.Schema.Types.Mixed
-});
-const Setting = mongoose.model('Setting', SettingSchema);
+
 
 // Middleware
 app.use(cors());
@@ -564,21 +696,131 @@ async function seedDatabase() {
             ];
             await Category.insertMany(defaultCategories);
         }
+
+        // Seed Admins
+        const adminCount = await AdminUser.countDocuments();
+        if (adminCount === 0) {
+            console.log('Seeding admin users...');
+            await AdminUser.insertMany([
+                { username: 'lokesh', password: '241522' },
+                { username: process.env.ADMIN_USERNAME || 'admin', password: process.env.ADMIN_PASSWORD || '123456' }
+            ]);
+            console.log('Seeding admin users completed!');
+        } else {
+            // Ensure lokesh exists just in case
+            const lokeshExists = await AdminUser.findOne({ username: 'lokesh' });
+            if (!lokeshExists) {
+                await AdminUser.create({ username: 'lokesh', password: '241522' });
+                console.log('Admin lokesh created!');
+            }
+        }
     } catch (err) {
         console.error('Seeding error:', err);
     }
 }
 
 // API Routes
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     console.log('Login attempt:', req.body.username);
     const { username, password } = req.body;
-    if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
-        res.json({ success: true });
-    } else {
+    try {
+        // Find user in db first
+        const dbAdmin = await AdminUser.findOne({ username });
+        if (dbAdmin) {
+            if (dbAdmin.password === password) {
+                return res.json({ success: true });
+            }
+        }
+        
+        // Fallback to env variables (for backward compatibility if needed)
+        if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
+            return res.json({ success: true });
+        }
+        
         res.status(401).json({ success: false, message: 'Invalid Credentials' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Database error during login' });
     }
 });
+
+// Admin management APIs
+app.get('/api/admins', async (req, res) => {
+    try {
+        const admins = await AdminUser.find({}, 'username');
+        res.json({ success: true, admins });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to fetch admins' });
+    }
+});
+
+app.post('/api/admins', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Username and password are required' });
+    }
+
+    // Only number allow validation
+    if (!/^\d+$/.test(password)) {
+        return res.status(400).json({ success: false, message: 'Password must contain only numbers (digits)' });
+    }
+
+    try {
+        const existing = await AdminUser.findOne({ username });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Admin username already exists' });
+        }
+
+        const newAdmin = new AdminUser({ username, password });
+        await newAdmin.save();
+        res.json({ success: true, message: 'Admin user created successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to create admin user' });
+    }
+});
+
+app.post('/api/admins/reset-password', async (req, res) => {
+    const { username, newPassword } = req.body;
+    if (!username || !newPassword) {
+        return res.status(400).json({ success: false, message: 'Username and new password are required' });
+    }
+
+    // Only number allow validation
+    if (!/^\d+$/.test(newPassword)) {
+        return res.status(400).json({ success: false, message: 'Password must contain only numbers (digits)' });
+    }
+
+    try {
+        const admin = await AdminUser.findOne({ username });
+        if (!admin) {
+            return res.status(404).json({ success: false, message: 'Admin user not found' });
+        }
+
+        admin.password = newPassword;
+        await admin.save();
+        res.json({ success: true, message: 'Password reset successfully!' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to reset password' });
+    }
+});
+
+app.delete('/api/admins/:username', async (req, res) => {
+    const { username } = req.params;
+    try {
+        const count = await AdminUser.countDocuments();
+        if (count <= 1) {
+            return res.status(400).json({ success: false, message: 'Cannot delete the last admin user' });
+        }
+
+        const result = await AdminUser.deleteOne({ username });
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ success: false, message: 'Admin user not found' });
+        }
+        res.json({ success: true, message: 'Admin user deleted successfully' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to delete admin user' });
+    }
+});
+
 
 app.get('/api/data', async (req, res) => {
     try {
@@ -689,6 +931,22 @@ app.get('/api/settings', async (req, res) => {
         const settingsMap = {};
         settings.forEach(s => settingsMap[s.key] = s.value);
         res.json(settingsMap);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Submit contact form
+app.post('/api/contact', async (req, res) => {
+    try {
+        const { name, phone, email, interest, message } = req.body;
+        if (!name || !phone) {
+            return res.status(400).json({ success: false, message: 'Name and phone are required' });
+        }
+        
+        sendContactEmails({ name, phone, email, interest, message }).catch(e => console.error('Background sendContactEmails error:', e));
+        
+        res.json({ success: true, message: 'Message sent successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

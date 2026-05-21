@@ -500,9 +500,16 @@ function viewOrderDetails(id) {
     modal.show();
 }
 
-function printInvoice(id) {
+async function printInvoice(id) {
     const order = orders.find(o => o.id === id);
     if (!order) return;
+
+    let phoneStr = '+91 93427 58753';
+    try {
+        const sRes = await fetch('/api/settings');
+        const sData = await sRes.json();
+        if (sData.phone) phoneStr = sData.phone;
+    } catch(e) {}
 
     const orderDate = new Date(order.date).toLocaleDateString('en-IN', {
         day: '2-digit', month: 'long', year: 'numeric'
@@ -518,45 +525,42 @@ function printInvoice(id) {
             <tr>
                 <td style="padding:10px 12px; border-bottom:1px solid #eee;">${sNo++}</td>
                 <td style="padding:10px 12px; border-bottom:1px solid #eee;">${item.name}</td>
-                <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:center;">${item.content || '-'}</td>
-                <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:center;">${item.qty}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid #eee;">${item.content || '-'}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:right;">${item.qty}</td>
                 <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:right;">₹${item.rate}</td>
-                <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:right; font-weight:600;">₹${item.rate * item.qty}</td>
+                <td style="padding:10px 12px; border-bottom:1px solid #eee; text-align:right;">₹${item.qty * item.rate}</td>
             </tr>
         `;
     });
 
     const invoiceHtml = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <title>Invoice - Kaviya Crackers</title>
+        <meta charset="UTF-8">
+        <title>Invoice - ${order.id}</title>
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 40px; }
-            .invoice-box { max-width: 800px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; }
-            .header { background: linear-gradient(135deg, #ff6b35, #ff8f5e); color: white; padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
-            .header .logo-area { display: flex; align-items: center; gap: 15px; }
-            .header .logo-area img { width: 60px; height: 60px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.5); }
-            .header .shop-name { font-size: 24px; font-weight: 700; }
-            .header .shop-sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-            .header .invoice-title { text-align: right; }
-            .header .invoice-title h2 { font-size: 28px; font-weight: 300; letter-spacing: 3px; }
-            .header .invoice-title p { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-            .body { padding: 30px 40px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .info-block h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 8px; font-weight: 600; }
-            .info-block p { margin: 3px 0; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-            thead th { background: #f8f9fa; padding: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #e0e0e0; text-align: left; }
-            thead th:last-child, thead th:nth-child(5), thead th:nth-child(4) { text-align: right; }
-            thead th:nth-child(3), thead th:nth-child(4) { text-align: center; }
-            .total-section { display: flex; justify-content: flex-end; }
-            .total-box { background: #f8f9fa; padding: 20px 30px; border-radius: 10px; min-width: 280px; }
-            .total-box .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-            .total-box .grand { font-size: 20px; font-weight: 700; color: #ff6b35; border-top: 2px solid #ddd; padding-top: 12px; margin-top: 8px; }
-            .footer { text-align: center; padding: 25px 40px; background: #fafafa; border-top: 1px solid #eee; font-size: 12px; color: #999; }
-            .footer strong { color: #ff6b35; }
+            body { font-family: 'Inter', sans-serif; padding: 40px; background: #f8f9fa; color: #333; }
+            .invoice-box { max-width: 800px; margin: auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f0f0f0; padding-bottom: 30px; }
+            .logo-area { display: flex; align-items: center; gap: 20px; }
+            .logo-area img { width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid #7209B7; padding: 2px; }
+            .shop-name { font-size: 28px; font-weight: 800; color: #7209B7; margin-bottom: 4px; letter-spacing: -0.5px; }
+            .shop-sub { color: #666; font-size: 14px; margin-bottom: 2px; }
+            .invoice-title { text-align: right; }
+            .invoice-title h2 { color: #7209B7; font-size: 36px; margin: 0 0 10px 0; font-weight: 800; letter-spacing: 1px; }
+            .invoice-title p { margin: 0 0 5px 0; color: #555; font-size: 14px; font-weight: 500; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 40px; background: #fcfcfc; padding: 20px; border-radius: 12px; }
+            .info-block h4 { color: #7209B7; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; }
+            .info-block p { margin: 0 0 6px 0; font-size: 14px; color: #444; line-height: 1.5; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+            th { background: #7209B7; color: white; padding: 15px 12px; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+            th:nth-child(4), th:nth-child(5), th:nth-child(6) { text-align: right; }
+            .totals { width: 300px; float: right; }
+            .totals-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #555; font-size: 14px; }
+            .totals-row.grand { font-size: 20px; font-weight: 800; color: #7209B7; border-bottom: none; border-top: 2px solid #7209B7; padding-top: 15px; margin-top: 5px; }
+            .footer { clear: both; padding-top: 50px; text-align: center; color: #888; font-size: 13px; border-top: 1px solid #eee; margin-top: 60px; }
+            .footer strong { color: #7209B7; font-size: 15px; display: block; margin-bottom: 8px; }
             @media print {
                 body { padding: 0; }
                 .invoice-box { border: none; border-radius: 0; }
@@ -571,7 +575,7 @@ function printInvoice(id) {
                     <div>
                         <div class="shop-name">Kaviya Crackers</div>
                         <div class="shop-sub">Premium Fireworks & Festive Crackers</div>
-                        <div class="shop-sub">📞 +91 93427 58753</div>
+                        <div class="shop-sub">📞 ${phoneStr}</div>
                     </div>
                 </div>
                 <div class="invoice-title">

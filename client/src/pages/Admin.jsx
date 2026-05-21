@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
 import { Link } from 'react-router-dom';
@@ -14,6 +14,17 @@ const Admin = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [settings, setSettings] = useState({ phone: '', whatsapp: '', email: '', address: '' });
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState(null);
+
+  // Admin user management state
+  const [admins, setAdmins] = useState([]);
+  const [newAdminUser, setNewAdminUser] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [selectedAdminToReset, setSelectedAdminToReset] = useState('');
+  const [resetPasswordVal, setResetPasswordVal] = useState('');
+  const [adminActionError, setAdminActionError] = useState('');
+  const [adminActionSuccess, setAdminActionSuccess] = useState('');
 
   // Modal States
   const [showProductModal, setShowProductModal] = useState(false);
@@ -27,40 +38,179 @@ const Admin = () => {
   });
   const [newCategory, setNewCategory] = useState({ name: '', image: '' });
 
-  const getSalesData = () => {
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      last7Days.push({
-        date: d,
-        label: d.toLocaleDateString('en-US', { weekday: 'short' }),
-        total: 0
-      });
-    }
+  // Group products by category (same as frontend Shop page)
+  const groupedProducts = useMemo(() => {
+    const groups = {};
+    products.forEach(p => {
+      if (!groups[p.category]) groups[p.category] = [];
+      groups[p.category].push(p);
+    });
+    return groups;
+  }, [products]);
 
-    orders.forEach(order => {
-      if (order.status !== 'Cancelled') {
-        const orderDate = new Date(order.date);
-        const dayMatch = last7Days.find(d => 
-          d.date.getDate() === orderDate.getDate() && 
-          d.date.getMonth() === orderDate.getMonth() && 
-          d.date.getFullYear() === orderDate.getFullYear()
-        );
-        if (dayMatch) {
-          dayMatch.total += (order.totalAmount || 0);
+  // Move product up or down within its category group
+  const handleMoveProduct = async (product, direction) => {
+    const catProducts = [...(groupedProducts[product.category] || [])];
+    const idx = catProducts.findIndex(p => String(p._id) === String(product._id));
+    if (idx < 0) return;
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= catProducts.length) return;
+
+    // Swap in the category group
+    [catProducts[idx], catProducts[swapIdx]] = [catProducts[swapIdx], catProducts[idx]];
+
+    // Rebuild the full products array preserving other categories' order
+    const newProducts = [];
+    const visited = new Set();
+    products.forEach(p => {
+      if (p.category === product.category) {
+        if (!visited.has(p.category)) {
+          visited.add(p.category);
+          newProducts.push(...catProducts);
         }
+      } else {
+        newProducts.push(p);
       }
     });
 
-    const maxSales = Math.max(...last7Days.map(d => d.total), 1);
-    return { data: last7Days, maxSales };
+    try {
+      await api.post('/data', { products: newProducts });
+      loadData();
+    } catch (err) {
+      alert('Failed to reorder product');
+    }
+  };
+
+  // Move category up or down in the list
+  const handleMoveCategory = async (index, direction) => {
+    const swapIdx = index + direction;
+    if (swapIdx < 0 || swapIdx >= categories.length) return;
+
+    const newCategories = [...categories];
+    [newCategories[index], newCategories[swapIdx]] = [newCategories[swapIdx], newCategories[index]];
+
+    try {
+      await api.post('/data', { categories: newCategories });
+      loadData();
+    } catch (err) {
+      alert('Failed to reorder category');
+    }
+  };
+
+  const [reportType, setReportType] = useState('weekly'); // 'weekly', 'monthly', 'yearly'
+
+  const getReportData = (type) => {
+    const data = [];
+    const now = new Date();
+
+    if (type === 'weekly') {
+      // Last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(now.getDate() - i);
+        data.push({
+          date: d,
+          label: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+          dateStr: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          total: 0,
+          ordersCount: 0
+        });
+      }
+
+      orders.forEach(order => {
+        if (order.status !== 'Cancelled') {
+          const orderDate = new Date(order.date);
+          const match = data.find(item => 
+            item.date.getDate() === orderDate.getDate() &&
+            item.date.getMonth() === orderDate.getMonth() &&
+            item.date.getFullYear() === orderDate.getFullYear()
+          );
+          if (match) {
+            match.total += (order.totalAmount || 0);
+            match.ordersCount += 1;
+          }
+        }
+      });
+    } else if (type === 'monthly') {
+      // Last 30 days (grouped in 4 weeks for beautiful visual bar presentation)
+      for (let i = 3; i >= 0; i--) {
+        const start = new Date();
+        start.setDate(now.getDate() - (i + 1) * 7 + 1);
+        start.setHours(0, 0, 0, 0);
+        
+        const end = new Date();
+        end.setDate(now.getDate() - i * 7);
+        end.setHours(23, 59, 59, 999);
+        
+        data.push({
+          start,
+          end,
+          label: i === 0 ? 'This Week' : `Week -${i}`,
+          dateStr: `${start.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - ${end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+          total: 0,
+          ordersCount: 0
+        });
+      }
+
+      orders.forEach(order => {
+        if (order.status !== 'Cancelled') {
+          const orderDate = new Date(order.date);
+          const match = data.find(item => orderDate >= item.start && orderDate <= item.end);
+          if (match) {
+            match.total += (order.totalAmount || 0);
+            match.ordersCount += 1;
+          }
+        }
+      });
+    } else if (type === 'yearly') {
+      // Last 12 months
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        data.push({
+          month: d.getMonth(),
+          year: d.getFullYear(),
+          label: d.toLocaleDateString('en-IN', { month: 'short' }),
+          dateStr: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+          total: 0,
+          ordersCount: 0
+        });
+      }
+
+      orders.forEach(order => {
+        if (order.status !== 'Cancelled') {
+          const orderDate = new Date(order.date);
+          const match = data.find(item => 
+            item.month === orderDate.getMonth() &&
+            item.year === orderDate.getFullYear()
+          );
+          if (match) {
+            match.total += (order.totalAmount || 0);
+            match.ordersCount += 1;
+          }
+        }
+      });
+    }
+
+    const maxSales = Math.max(...data.map(d => d.total), 1);
+    return { data, maxSales };
+  };
+
+  const loadAdmins = async () => {
+    try {
+      const response = await api.get('/admins');
+      if (response.data && response.data.success) {
+        setAdmins(response.data.admins || []);
+      }
+    } catch (err) {
+      console.error('Failed to load admins', err);
+    }
   };
 
   useEffect(() => {
     if (sessionStorage.getItem('admin_auth') === 'true') {
       setIsAuthenticated(true);
       loadData();
+      loadAdmins();
     }
   }, []);
 
@@ -70,12 +220,28 @@ const Admin = () => {
       setOrders(data.orders || []);
       setProducts(data.products || []);
       setCategories(data.categories || []);
+      if (data.settings) setSettings(data.settings);
+    }
+  };
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault();
+    setSettingsSaveStatus('saving');
+    try {
+      await api.post('/data', { settings });
+      setSettingsSaveStatus('success');
+      setTimeout(() => setSettingsSaveStatus(null), 3000);
+      loadData();
+    } catch (err) {
+      setSettingsSaveStatus('error');
+      setTimeout(() => setSettingsSaveStatus(null), 3000);
     }
   };
 
   const handleSync = async () => {
     setIsSyncing(true);
     await loadData();
+    await loadAdmins();
     setTimeout(() => setIsSyncing(false), 800); // Small delay for UX feel
   };
 
@@ -86,8 +252,99 @@ const Admin = () => {
       sessionStorage.setItem('admin_auth', 'true');
       setIsAuthenticated(true);
       loadData();
+      loadAdmins();
     } else {
       alert(res.message);
+    }
+  };
+
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    setAdminActionError('');
+    setAdminActionSuccess('');
+
+    if (!newAdminUser.trim() || !newAdminPassword) {
+      setAdminActionError('Username and password are required.');
+      return;
+    }
+
+    if (!/^\d+$/.test(newAdminPassword)) {
+      setAdminActionError('Password must contain only numbers.');
+      return;
+    }
+
+    try {
+      const res = await api.post('/admins', {
+        username: newAdminUser.trim(),
+        password: newAdminPassword
+      });
+      if (res.data && res.data.success) {
+        setAdminActionSuccess('Admin user created successfully!');
+        setNewAdminUser('');
+        setNewAdminPassword('');
+        loadAdmins();
+      } else {
+        setAdminActionError(res.data.message || 'Failed to create admin.');
+      }
+    } catch (err) {
+      setAdminActionError(err.response?.data?.message || 'Server error creating admin.');
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setAdminActionError('');
+    setAdminActionSuccess('');
+
+    if (!selectedAdminToReset) {
+      setAdminActionError('Please select an admin user.');
+      return;
+    }
+
+    if (!resetPasswordVal) {
+      setAdminActionError('New password is required.');
+      return;
+    }
+
+    if (!/^\d+$/.test(resetPasswordVal)) {
+      setAdminActionError('Password must contain only numbers.');
+      return;
+    }
+
+    try {
+      const res = await api.post('/admins/reset-password', {
+        username: selectedAdminToReset,
+        newPassword: resetPasswordVal
+      });
+      if (res.data && res.data.success) {
+        setAdminActionSuccess(`Password for "${selectedAdminToReset}" reset successfully!`);
+        setResetPasswordVal('');
+        setSelectedAdminToReset('');
+      } else {
+        setAdminActionError(res.data.message || 'Failed to reset password.');
+      }
+    } catch (err) {
+      setAdminActionError(err.response?.data?.message || 'Server error resetting password.');
+    }
+  };
+
+  const handleDeleteAdmin = async (usernameToDelete) => {
+    if (!window.confirm(`Are you sure you want to delete admin "${usernameToDelete}"?`)) {
+      return;
+    }
+    setAdminActionError('');
+    setAdminActionSuccess('');
+
+    try {
+      const res = await api.delete(`/admins/${usernameToDelete}`);
+      if (res.data && res.data.success) {
+        setAdminActionSuccess(`Admin "${usernameToDelete}" deleted successfully.`);
+        loadAdmins();
+      } else {
+        setAdminActionError(res.data.message || 'Failed to delete admin.');
+      }
+    } catch (err) {
+      setAdminActionError(err.response?.data?.message || 'Server error deleting admin.');
     }
   };
 
@@ -346,7 +603,7 @@ const Admin = () => {
         <div class="brand-info">
           <h1>Kaviya Crackers</h1>
           <p>Premium Fireworks &amp; Festive Crackers</p>
-          <p>Sivakasi, Tamil Nadu | +91 93427 58753</p>
+          <p>${settings?.address || 'Sivakasi, Tamil Nadu'} | ${settings?.phone || '+91 93427 58753'}</p>
         </div>
       </div>
       <div class="invoice-meta">
@@ -367,9 +624,9 @@ const Admin = () => {
       <div class="info-box" style="text-align: right;">
         <h4>From</h4>
         <p><strong>Kaviya Crackers</strong></p>
-        <p>Festival Plaza, Main Road</p>
-        <p>Sivakasi, Tamil Nadu</p>
-        <p>info@kaviyacrackers.com</p>
+        <p>${(settings?.address || 'Festival Plaza, Main Road\\nSivakasi, Tamil Nadu').replace(/\\n/g, '<br/>')}</p>
+        <p>${settings?.phone || '+91 93427 58753'}</p>
+        <p>${settings?.email || 'kaviyacrackers5@gmail.com'}</p>
       </div>
     </div>
     <table>
@@ -412,7 +669,7 @@ const Admin = () => {
     </div>
     <div class="footer">
       <p><strong>Thank you for your order!</strong></p>
-      <p>For queries, call +91 93427 58753 or WhatsApp us.</p>
+      <p>For queries, call ${settings?.phone || '+91 93427 58753'} or WhatsApp us.</p>
       <p style="margin-top:8px;">This is a computer-generated invoice.</p>
     </div>
   </div>
@@ -476,6 +733,8 @@ const Admin = () => {
               { id: 'products', icon: 'box-seam', label: 'Products' },
               { id: 'categories', icon: 'grid', label: 'Categories' },
               { id: 'orders', icon: 'cart-check', label: 'Enquiries' },
+              { id: 'admins', icon: 'shield-lock', label: 'Admins' },
+              { id: 'settings', icon: 'gear', label: 'Store Settings' },
             ].map(item => (
               <button key={item.id} 
                       className={`nav-link border-0 text-start rounded-4 py-3 px-4 d-flex align-items-center gap-3 transition-all ${activeSection === item.id ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-muted hover-light'}`}
@@ -544,31 +803,87 @@ const Admin = () => {
                 <div className="col-lg-8">
                   <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0 h-100">
                     <div className="d-flex justify-content-between align-items-center mb-4">
-                      <h4 className="fw-bold m-0">Weekly Sales Report</h4>
-                      <span className="badge bg-soft-primary text-primary rounded-pill px-3 py-2">Last 7 Days</span>
+                      <h4 className="fw-bold m-0">Sales Analytics Report</h4>
+                      <div className="btn-group btn-group-sm rounded-pill p-1 bg-light shadow-sm" role="group">
+                        <button 
+                          className={`btn rounded-pill px-3 fw-bold border-0 transition-all ${reportType === 'weekly' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
+                          onClick={() => setReportType('weekly')}
+                        >
+                          Weekly
+                        </button>
+                        <button 
+                          className={`btn rounded-pill px-3 fw-bold border-0 transition-all ${reportType === 'monthly' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
+                          onClick={() => setReportType('monthly')}
+                        >
+                          Monthly
+                        </button>
+                        <button 
+                          className={`btn rounded-pill px-3 fw-bold border-0 transition-all ${reportType === 'yearly' ? 'btn-primary text-white shadow-sm' : 'btn-light text-muted'}`}
+                          onClick={() => setReportType('yearly')}
+                        >
+                          Yearly
+                        </button>
+                      </div>
                     </div>
                     
                     {/* Custom CSS Bar Chart */}
                     <div className="d-flex align-items-end justify-content-between pt-4 pb-2" style={{ height: '250px' }}>
                       {(() => {
-                        const { data, maxSales } = getSalesData();
-                        return data.map((day, idx) => (
-                          <div key={idx} className="d-flex flex-column align-items-center" style={{ width: '12%' }}>
-                            <div className="fw-bold text-dark small mb-2 opacity-75">
-                              ₹{day.total >= 1000 ? (day.total/1000).toFixed(1) + 'k' : day.total}
+                        const { data, maxSales } = getReportData(reportType);
+                        const widthPct = reportType === 'weekly' ? '12%' : reportType === 'monthly' ? '20%' : '7%';
+                        return data.map((item, idx) => (
+                          <div key={idx} className="d-flex flex-column align-items-center" style={{ width: widthPct }}>
+                            <div className="fw-bold text-dark small mb-2 opacity-75 text-nowrap" style={{ fontSize: '0.75rem' }}>
+                              ₹{item.total >= 1000 ? (item.total/1000).toFixed(1) + 'k' : item.total}
                             </div>
                             <div className="w-100 rounded-top-3 bg-primary position-relative shadow-sm" 
                                  style={{ 
-                                   height: `${(day.total / maxSales) * 160}px`, 
+                                   height: `${(item.total / maxSales) * 160}px`, 
                                    minHeight: '4px',
                                    background: 'linear-gradient(180deg, #7209B7 0%, #3A0CA3 100%)',
                                    transition: 'height 1s ease-out'
                                  }}>
                             </div>
-                            <div className="mt-3 text-muted small fw-semibold text-uppercase">{day.label}</div>
+                            <div className="mt-3 text-muted small fw-semibold text-uppercase text-nowrap" style={{ fontSize: '0.7rem' }}>{item.label}</div>
                           </div>
                         ));
                       })()}
+                    </div>
+
+                    {/* Detailed Sales Data Table */}
+                    <hr className="my-5 opacity-10" />
+                    <h5 className="fw-bold mb-4 d-flex align-items-center gap-2">
+                      <i className="bi bi-table text-primary"></i> Detailed Statement ({reportType.toUpperCase()})
+                    </h5>
+                    <div className="table-responsive rounded-4 border shadow-sm">
+                      <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-white-tertiary border-bottom text-uppercase" style={{ fontSize: '0.75rem', color: '#7209B7' }}>
+                          <tr>
+                            <th className="ps-4 py-3">Interval / Period</th>
+                            <th className="py-3 text-center">Enquiries Received</th>
+                            <th className="text-end pe-4 py-3">Total Sales Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const { data } = getReportData(reportType);
+                            const activeData = [...data].reverse(); // Show latest first in table
+                            return activeData.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="ps-4 py-3 fw-bold text-dark">{item.dateStr || item.label}</td>
+                                <td className="text-center py-3">
+                                  <span className="badge bg-soft-primary text-primary rounded-pill px-3 py-2 fw-semibold">
+                                    {item.ordersCount} enquiries
+                                  </span>
+                                </td>
+                                <td className="text-end pe-4 py-3 fw-bold text-primary" style={{ fontSize: '1.05rem' }}>
+                                  ₹{item.total.toLocaleString('en-IN')}
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -628,34 +943,73 @@ const Admin = () => {
                   <table className="table table-hover align-middle mb-0 text-nowrap">
                     <thead className="bg-white-tertiary border-bottom">
                     <tr>
-                      <th className="ps-4 py-3">Img</th>
+                      <th className="ps-4 py-3" style={{width:'50px'}}>#</th>
+                      <th className="py-3" style={{width:'60px'}}>Img</th>
                       <th className="py-3">Product Name</th>
-                      <th className="py-3">Category</th>
                       <th className="py-3 text-center">Price</th>
+                      <th className="py-3 text-center" style={{width:'100px'}}>Reorder</th>
                       <th className="text-end pe-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map(p => (
-                      <tr key={p._id}>
-                        <td className="ps-4">
-                          <img src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
-                        </td>
-                        <td>
-                          <div className="fw-bold text-dark">{p.name}</div>
-                          <div className="small text-muted">{p.content}</div>
-                        </td>
-                        <td><span className="badge bg-soft-primary text-primary rounded-pill px-3">{p.category}</span></td>
-                        <td className="text-center">
-                          <div className="fw-bold text-primary">₹{p.rate}</div>
-                          <div className="text-muted small text-decoration-line-through">₹{p.originalRate}</div>
-                        </td>
-                        <td className="text-end pe-4">
-                          <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)}><i className="bi bi-pencil"></i></button>
-                          <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)}><i className="bi bi-trash"></i></button>
-                        </td>
-                      </tr>
-                    ))}
+                    {Object.keys(groupedProducts).length === 0 ? (
+                      <tr><td colSpan="6" className="text-center py-5 text-muted">No products found.</td></tr>
+                    ) : (
+                      Object.keys(groupedProducts).map(catName => {
+                        const catProducts = groupedProducts[catName];
+                        return (
+                          <React.Fragment key={catName}>
+                            <tr style={{backgroundColor: 'rgba(114, 9, 183, 0.06)'}}>
+                              <td colSpan="6" className="py-3 ps-4 fw-bold border-bottom" style={{fontSize: '1rem', color: '#7209B7', letterSpacing: '0.3px'}}>
+                                <i className="bi bi-folder2-open me-2"></i>
+                                {catName}
+                                <span className="badge bg-soft-primary text-primary rounded-pill ms-2 fw-normal" style={{fontSize: '0.7rem'}}>{catProducts.length} items</span>
+                              </td>
+                            </tr>
+                            {catProducts.map((p, idx) => (
+                              <tr key={p._id}>
+                                <td className="ps-4 text-muted small">{idx + 1}</td>
+                                <td>
+                                  <img src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
+                                </td>
+                                <td>
+                                  <div className="fw-bold text-dark">{p.name}</div>
+                                  <div className="small text-muted">{p.content}</div>
+                                </td>
+                                <td className="text-center">
+                                  <div className="fw-bold text-primary">₹{p.rate}</div>
+                                  <div className="text-muted small text-decoration-line-through">₹{p.originalRate}</div>
+                                </td>
+                                <td className="text-center">
+                                  <div className="d-flex justify-content-center gap-1">
+                                    <button 
+                                      className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
+                                      style={{width:'30px', height:'30px', opacity: idx === 0 ? 0.3 : 1}} 
+                                      disabled={idx === 0} 
+                                      onClick={() => handleMoveProduct(p, -1)} 
+                                      title="Move Up">
+                                      <i className="bi bi-arrow-up"></i>
+                                    </button>
+                                    <button 
+                                      className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
+                                      style={{width:'30px', height:'30px', opacity: idx === catProducts.length - 1 ? 0.3 : 1}} 
+                                      disabled={idx === catProducts.length - 1} 
+                                      onClick={() => handleMoveProduct(p, 1)} 
+                                      title="Move Down">
+                                      <i className="bi bi-arrow-down"></i>
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="text-end pe-4">
+                                  <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)}><i className="bi bi-pencil"></i></button>
+                                  <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)}><i className="bi bi-trash"></i></button>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
                </div>
@@ -771,7 +1125,10 @@ const Admin = () => {
           {activeSection === 'categories' && (
             <div className="admin-section animate-fade-in">
               <div className="d-flex justify-content-between align-items-center mb-5">
-                <h2 className="fw-bold m-0">Categories</h2>
+                <div>
+                  <h2 className="fw-bold m-0">Categories</h2>
+                  <p className="text-muted mb-0">Manage categories and their display order</p>
+                </div>
                 <button className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg hover-scale"
                         onClick={() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }}>
                   <i className="bi bi-plus-lg me-2"></i> Add Category
@@ -780,7 +1137,30 @@ const Admin = () => {
               <div className="row g-4">
                 {categories.map((cat, i) => (
                   <div className="col-md-3" key={i}>
-                    <div className="card border-0 rounded-5 shadow-sm overflow-hidden h-100 hover-up">
+                    <div className="card border-0 rounded-5 shadow-sm overflow-hidden h-100 hover-up position-relative">
+                      {/* Position Badge */}
+                      <div className="position-absolute top-0 start-0 m-2 z-1">
+                        <span className="badge bg-dark bg-opacity-75 rounded-pill px-2 py-1" style={{fontSize:'0.7rem'}}>#{i + 1}</span>
+                      </div>
+                      {/* Up/Down Buttons */}
+                      <div className="position-absolute top-0 end-0 m-2 z-1 d-flex flex-column gap-1">
+                        <button 
+                          className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center border" 
+                          style={{width:'28px', height:'28px', opacity: i === 0 ? 0.35 : 1}} 
+                          disabled={i === 0} 
+                          onClick={() => handleMoveCategory(i, -1)} 
+                          title="Move Up">
+                          <i className="bi bi-arrow-up" style={{fontSize:'0.75rem'}}></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center border" 
+                          style={{width:'28px', height:'28px', opacity: i === categories.length - 1 ? 0.35 : 1}} 
+                          disabled={i === categories.length - 1} 
+                          onClick={() => handleMoveCategory(i, 1)} 
+                          title="Move Down">
+                          <i className="bi bi-arrow-down" style={{fontSize:'0.75rem'}}></i>
+                        </button>
+                      </div>
                       <img src={cat.image ? (cat.image.startsWith('http') ? cat.image : `/${cat.image}`) : logo} className="card-img-top" alt={cat.name} style={{ height: '150px', objectFit: 'cover' }} />
                       <div className="card-body p-4 text-center">
                         <h5 className="fw-bold mb-3">{cat.name}</h5>
@@ -792,6 +1172,250 @@ const Admin = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'admins' && (
+            <div className="admin-section animate-fade-in">
+              <div className="d-flex justify-content-between align-items-center mb-5">
+                <div>
+                  <h2 className="fw-bold m-0">Admin Settings</h2>
+                  <p className="text-muted mb-0">Manage administrator users and reset passwords</p>
+                </div>
+                <button className="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center" onClick={loadAdmins} disabled={isSyncing}>
+                  <i className="bi bi-arrow-repeat me-2"></i> Sync Admins
+                </button>
+              </div>
+
+              {adminActionError && (
+                <div className="alert alert-danger border-0 rounded-4 p-3 mb-4 shadow-sm animate-fade-in d-flex align-items-center gap-2">
+                  <i className="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+                  <span className="fw-semibold text-danger">{adminActionError}</span>
+                </div>
+              )}
+
+              {adminActionSuccess && (
+                <div className="alert alert-success border-0 rounded-4 p-3 mb-4 shadow-sm animate-fade-in d-flex align-items-center gap-2">
+                  <i className="bi bi-check-circle-fill fs-5 text-success"></i>
+                  <span className="fw-semibold text-success">{adminActionSuccess}</span>
+                </div>
+              )}
+
+              <div className="row g-4">
+                {/* Admin Users List */}
+                <div className="col-lg-6">
+                  <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0 h-100">
+                    <h4 className="fw-bold mb-4 d-flex align-items-center gap-2">
+                      <i className="bi bi-people text-primary"></i> Admin Users
+                    </h4>
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle mb-0">
+                        <thead className="bg-white-tertiary border-bottom">
+                          <tr>
+                            <th className="ps-3 py-3">#</th>
+                            <th className="py-3">Username</th>
+                            <th className="text-end pe-3 py-3">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {admins.filter(admin => admin.username !== 'lokesh').length === 0 ? (
+                            <tr><td colSpan="3" className="text-center py-4 text-muted">No admin users found.</td></tr>
+                          ) : (
+                            admins.filter(admin => admin.username !== 'lokesh').map((admin, idx) => (
+                              <tr key={admin.username}>
+                                <td className="ps-3 text-muted small">{idx + 1}</td>
+                                <td>
+                                  <span className="fw-bold text-dark">{admin.username}</span>
+                                </td>
+                                <td className="text-end pe-3">
+                                  <button 
+                                    className="btn btn-sm btn-outline-primary rounded-pill px-3 me-2 shadow-sm"
+                                    onClick={() => {
+                                      setSelectedAdminToReset(admin.username);
+                                      setResetPasswordVal('');
+                                      setAdminActionError('');
+                                      setAdminActionSuccess('');
+                                    }}
+                                  >
+                                    <i className="bi bi-key me-1"></i>Reset Password
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm btn-soft-danger rounded-circle p-2"
+                                    onClick={() => handleDeleteAdmin(admin.username)}
+                                    disabled={admins.length <= 1}
+                                    title="Delete Admin"
+                                  >
+                                    <i className="bi bi-trash"></i>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Password Reset & Create Section */}
+                <div className="col-lg-6 d-flex flex-column gap-4">
+                  {/* Password Reset Box */}
+                  <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0">
+                    <h4 className="fw-bold mb-4 d-flex align-items-center gap-2">
+                      <i className="bi bi-shield-lock text-warning"></i> Reset Password
+                    </h4>
+                    <form onSubmit={handleResetPassword}>
+                      <div className="form-group mb-3">
+                        <label className="fw-bold mb-2 small text-muted text-uppercase tracking-wider">Select Admin</label>
+                        <select 
+                          className="form-select rounded-4 border-light bg-white-tertiary py-3 px-4 fw-semibold"
+                          value={selectedAdminToReset}
+                          onChange={e => setSelectedAdminToReset(e.target.value)}
+                          required
+                        >
+                          <option value="">-- Select Admin User --</option>
+                          {admins.filter(admin => admin.username !== 'lokesh').map(admin => (
+                            <option key={admin.username} value={admin.username}>{admin.username}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="form-group mb-4">
+                        <label className="fw-bold mb-2 small text-muted text-uppercase tracking-wider">New Password (Numbers Only)</label>
+                        <input 
+                          type="text" 
+                          className="form-control rounded-4 border-light bg-white-tertiary py-3 px-4 fw-semibold"
+                          placeholder="e.g. 123456 (Only numbers allowed)"
+                          value={resetPasswordVal}
+                          onChange={e => {
+                            // Enforce only digits in real-time
+                            const val = e.target.value;
+                            if (val === '' || /^\d+$/.test(val)) {
+                              setResetPasswordVal(val);
+                              setAdminActionError('');
+                            } else {
+                              setAdminActionError('Only numbers are allowed for admin passwords!');
+                            }
+                          }}
+                          required
+                        />
+                        <div className="form-text text-muted small mt-2">
+                          <i className="bi bi-info-circle me-1"></i> For security, the password must consist strictly of digits (0-9).
+                        </div>
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        className="btn btn-warning w-100 py-3 rounded-pill fw-bold text-dark shadow-sm hover-scale d-flex align-items-center justify-content-center gap-2"
+                        disabled={!selectedAdminToReset || !resetPasswordVal}
+                      >
+                        <i className="bi bi-check-circle"></i> Save New Password
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Create Admin Box */}
+                  <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0">
+                    <h4 className="fw-bold mb-4 d-flex align-items-center gap-2">
+                      <i className="bi bi-person-plus text-success"></i> Create New Admin
+                    </h4>
+                    <form onSubmit={handleCreateAdmin}>
+                      <div className="form-group mb-3">
+                        <label className="fw-bold mb-2 small text-muted text-uppercase tracking-wider">Username</label>
+                        <input 
+                          type="text" 
+                          className="form-control rounded-4 border-light bg-white-tertiary py-3 px-4 fw-semibold"
+                          placeholder="e.g. vasanth"
+                          value={newAdminUser}
+                          onChange={e => setNewAdminUser(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group mb-4">
+                        <label className="fw-bold mb-2 small text-muted text-uppercase tracking-wider">Password (Numbers Only)</label>
+                        <input 
+                          type="text" 
+                          className="form-control rounded-4 border-light bg-white-tertiary py-3 px-4 fw-semibold"
+                          placeholder="e.g. 123456"
+                          value={newAdminPassword}
+                          onChange={e => {
+                            // Enforce only digits in real-time
+                            const val = e.target.value;
+                            if (val === '' || /^\d+$/.test(val)) {
+                              setNewAdminPassword(val);
+                              setAdminActionError('');
+                            } else {
+                              setAdminActionError('Only numbers are allowed for admin passwords!');
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        className="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm hover-scale d-flex align-items-center justify-content-center gap-2"
+                        disabled={!newAdminUser || !newAdminPassword}
+                      >
+                        <i className="bi bi-plus-circle"></i> Create Administrator
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'settings' && (
+            <div className="admin-section animate-fade-in">
+              <div className="d-flex justify-content-between align-items-center mb-5">
+                <div>
+                  <h2 className="fw-bold m-0">Store Settings</h2>
+                  <p className="text-muted mb-0">Manage contact information displayed across the website and invoices.</p>
+                </div>
+              </div>
+              <div className="bg-white p-4 p-md-5 rounded-5 shadow-sm border-0">
+                <form onSubmit={handleSaveSettings}>
+                  {settingsSaveStatus === 'success' && <div className="alert alert-success d-flex align-items-center gap-2"><i className="bi bi-check-circle-fill"></i>Settings saved successfully!</div>}
+                  {settingsSaveStatus === 'error' && <div className="alert alert-danger d-flex align-items-center gap-2"><i className="bi bi-exclamation-triangle-fill"></i>Failed to save settings.</div>}
+                  <div className="row g-4">
+                    <div className="col-md-6">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storePhone" 
+                               value={settings.phone || ''} onChange={e => setSettings({...settings, phone: e.target.value})} required />
+                        <label htmlFor="storePhone">Store Contact Phone (e.g. +91 93427 58753)</label>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeWhatsapp" 
+                               value={settings.whatsapp || ''} onChange={e => setSettings({...settings, whatsapp: e.target.value})} required />
+                        <label htmlFor="storeWhatsapp">WhatsApp Number (e.g. 919342758753)</label>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="form-floating">
+                        <input type="email" className="form-control rounded-4 border-light bg-white-tertiary" id="storeEmail" 
+                               value={settings.email || ''} onChange={e => setSettings({...settings, email: e.target.value})} required />
+                        <label htmlFor="storeEmail">Store Email (For Receiving Enquiries)</label>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="form-floating">
+                        <textarea className="form-control rounded-4 border-light bg-white-tertiary" id="storeAddress" style={{ height: '100px' }}
+                                  value={settings.address || ''} onChange={e => setSettings({...settings, address: e.target.value})} required></textarea>
+                        <label htmlFor="storeAddress">Store Physical Address (Shown on Invoices)</label>
+                      </div>
+                    </div>
+                    <div className="col-12 mt-4">
+                      <button type="submit" className="btn btn-primary rounded-pill px-5 fw-bold shadow-sm d-flex align-items-center gap-2" disabled={settingsSaveStatus === 'saving'}>
+                        {settingsSaveStatus === 'saving' ? <><i className="bi bi-arrow-repeat fa-spin"></i> Saving...</> : <><i className="bi bi-save"></i> Save Settings</>}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
             </div>
           )}

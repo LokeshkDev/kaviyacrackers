@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useApi } from '../hooks/useApi';
+import { useApi, api } from '../hooks/useApi';
+import { useCart } from '../context/CartContext';
 import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
@@ -16,7 +17,24 @@ import offersBg from '../assets/img/offers-bg.png';
 
 const Home = () => {
   const { fetchData } = useApi();
+  const { settings } = useCart();
   const [categories, setCategories] = useState([]);
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', interest: 'Retail', message: '' });
+  const [submitStatus, setSubmitStatus] = useState(null);
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitStatus('submitting');
+    try {
+      await api.post('/contact', contactForm);
+      setSubmitStatus('success');
+      setContactForm({ name: '', phone: '', email: '', interest: 'Retail', message: '' });
+      setTimeout(() => setSubmitStatus(null), 3000);
+    } catch (err) {
+      setSubmitStatus('error');
+      setTimeout(() => setSubmitStatus(null), 3000);
+    }
+  };
 
   useEffect(() => {
     AOS.init({ duration: 800, once: true });
@@ -63,7 +81,7 @@ const Home = () => {
               </p>
               <div className="d-flex flex-wrap gap-3">
                 <Link to="/shop" className="btn btn-primary btn-lg rounded-pill px-5 shadow-lg">Shop Now</Link>
-                <a href="https://wa.me/919342758753" target="_blank" rel="noreferrer"
+                <a href={`https://wa.me/${(settings?.whatsapp || settings?.phone || '919342758753').replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
                   className="btn btn-outline-dark btn-lg rounded-pill px-5 shadow-sm">WhatsApp Order</a>
               </div>
               <div className="mt-5 d-flex gap-4 align-items-center">
@@ -193,7 +211,7 @@ const Home = () => {
             <div className="col-lg-5 mb-5 mb-lg-0" data-aos="fade-right">
               <h2 className="display-4 fw-bold mb-4">Exclusive <br />Festival Offers</h2>
               <p className="lead mb-5 opacity-75">Don't miss out on our specially curated combo packs and wholesale discounts. Limited time only!</p>
-              <a href="https://wa.me/919342758753" className="btn btn-light btn-lg rounded-pill px-5 fw-bold text-primary shadow-lg">Grab Offers Now</a>
+              <a href={`https://wa.me/${(settings?.whatsapp || settings?.phone || '919342758753').replace(/\D/g, '')}`} className="btn btn-light btn-lg rounded-pill px-5 fw-bold text-primary shadow-lg">Grab Offers Now</a>
             </div>
             <div className="col-lg-7" data-aos="fade-left">
               <div className="row g-4 scroll-reveal">
@@ -344,9 +362,10 @@ const Home = () => {
               <p className="text-muted mb-5">Have questions or want to place a bulk order? Our team is here to help you.</p>
               <div className="contact-info">
                 {[
-                  { icon: 'geo-alt', label: 'Address', text: '123, Festival Plaza, Main Road, Sivakasi, Tamil Nadu', color: 'primary' },
-                  { icon: 'telephone', label: 'Phone', text: '+91 93427 58753', color: 'warning' },
-                  { icon: 'envelope', label: 'Email', text: 'info@Kaviyacrackers.com', color: 'info' }
+                  { icon: 'geo-alt', label: 'Address', text: settings?.address || '123, Festival Plaza, Main Road, Sivakasi, Tamil Nadu', color: 'primary' },
+                  { icon: 'telephone', label: 'Phone', text: settings?.phone || '+91 93427 58753', color: 'warning' },
+                  { icon: 'whatsapp', label: 'WhatsApp', text: settings?.whatsapp || settings?.phone || '+91 93427 58753', color: 'success' },
+                  { icon: 'envelope', label: 'Email', text: settings?.email || 'kaviyacrackers5@gmail.com', color: 'info' }
                 ].map((item, idx) => (
                   <div className="d-flex mb-4" key={idx}>
                     <div className="icon-box bg-white shadow-sm rounded-4 me-3 p-3 d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
@@ -372,23 +391,31 @@ const Home = () => {
             <div className="col-lg-7" data-aos="fade-left">
               <div className="p-5 bg-white rounded-5 shadow-lg border-top border-5 border-primary">
                 <h3 className="fw-bold mb-4">Send an Enquiry</h3>
-                <form id="contactForm">
+                <form id="contactForm" onSubmit={handleContactSubmit}>
+                  {submitStatus === 'success' && <div className="alert alert-success">Message sent successfully!</div>}
+                  {submitStatus === 'error' && <div className="alert alert-danger">Failed to send message. Try again later.</div>}
                   <div className="row g-3">
                     <div className="col-md-6">
                       <div className="form-floating mb-3">
-                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="name" placeholder="Name" required />
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="name" placeholder="Name" required value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} />
                         <label htmlFor="name">Your Name</label>
                       </div>
                     </div>
                     <div className="col-md-6">
                       <div className="form-floating mb-3">
-                        <input type="tel" className="form-control rounded-4 border-light bg-white-tertiary" id="phone" placeholder="Phone" required />
+                        <input type="tel" className="form-control rounded-4 border-light bg-white-tertiary" id="phone" placeholder="Phone" required value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} />
                         <label htmlFor="phone">Phone Number</label>
                       </div>
                     </div>
                     <div className="col-12">
                       <div className="form-floating mb-3">
-                        <select className="form-select rounded-4 border-light bg-white-tertiary" id="interest">
+                        <input type="email" className="form-control rounded-4 border-light bg-white-tertiary" id="email" placeholder="Email" required value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} />
+                        <label htmlFor="email">Email Address</label>
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <div className="form-floating mb-3">
+                        <select className="form-select rounded-4 border-light bg-white-tertiary" id="interest" value={contactForm.interest} onChange={e => setContactForm({...contactForm, interest: e.target.value})}>
                           <option value="Retail">Retail Purchase</option>
                           <option value="Wholesale">Wholesale Enquiry</option>
                           <option value="Combo">Festival Combo Packs</option>
@@ -399,12 +426,14 @@ const Home = () => {
                     </div>
                     <div className="col-12">
                       <div className="form-floating mb-3">
-                        <textarea className="form-control rounded-4 border-light bg-white-tertiary" style={{ height: '150px' }} placeholder="Message" id="message"></textarea>
+                        <textarea className="form-control rounded-4 border-light bg-white-tertiary" style={{ height: '150px' }} placeholder="Message" id="message" value={contactForm.message} onChange={e => setContactForm({...contactForm, message: e.target.value})}></textarea>
                         <label htmlFor="message">Message (Optional)</label>
                       </div>
                     </div>
                     <div className="col-12 mt-4">
-                      <button className="btn btn-primary btn-lg rounded-pill px-5 w-100 py-3 fw-bold shadow-lg" type="submit">Submit Enquiry</button>
+                      <button className="btn btn-primary btn-lg rounded-pill px-5 w-100 py-3 fw-bold shadow-lg" type="submit" disabled={submitStatus === 'submitting'}>
+                        {submitStatus === 'submitting' ? 'Sending...' : 'Submit Enquiry'}
+                      </button>
                     </div>
                   </div>
                 </form>
@@ -416,10 +445,10 @@ const Home = () => {
 
       {/* Floating Action Elements */}
       <div className="floating-actions d-flex flex-column gap-3 position-fixed bottom-0 end-0 m-4" style={{ zIndex: 1050 }}>
-        <a href="https://wa.me/919342758753" className="btn-float whatsapp shadow-lg d-flex align-items-center justify-content-center" title="WhatsApp Order">
+        <a href={`https://wa.me/${(settings?.whatsapp || settings?.phone || '919342758753').replace(/\D/g, '')}`} className="btn-float whatsapp shadow-lg d-flex align-items-center justify-content-center" title="WhatsApp Order">
           <i className="bi bi-whatsapp"></i>
         </a>
-        <a href="tel:+919342758753" className="btn-float call shadow-lg d-flex align-items-center justify-content-center" title="Call Us">
+        <a href={`tel:${settings?.phone?.replace(/\s+/g, '') || '+919342758753'}`} className="btn-float call shadow-lg d-flex align-items-center justify-content-center" title="Call Us">
           <i className="bi bi-telephone"></i>
         </a>
         <button id="scrollToTop" className="btn-float top shadow-lg d-flex align-items-center justify-content-center" title="Scroll to Top" style={{ display: 'none' }}>
@@ -435,7 +464,7 @@ const Home = () => {
         <a href="#" className="social-bar-item instagram d-flex align-items-center text-decoration-none text-white p-3 gap-3">
           <i className="bi bi-instagram fs-4"></i><span>Instagram</span>
         </a>
-        <a href="https://wa.me/919342758753" className="social-bar-item whatsapp d-flex align-items-center text-decoration-none text-white p-3 gap-3">
+        <a href={`https://wa.me/${(settings?.whatsapp || settings?.phone || '919342758753').replace(/\D/g, '')}`} className="social-bar-item whatsapp d-flex align-items-center text-decoration-none text-white p-3 gap-3">
           <i className="bi bi-whatsapp fs-4"></i><span>WhatsApp</span>
         </a>
         <a href="#" className="social-bar-item youtube d-flex align-items-center text-decoration-none text-white p-3 gap-3">

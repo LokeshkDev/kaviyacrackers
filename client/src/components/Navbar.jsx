@@ -3,7 +3,7 @@ import logo from '../assets/img/kaviya_crackers_logo.jpeg';
 import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
-  const { cart, cartCount, updateCart, products } = useCart();
+  const { cart, cartCount, updateCart, products, settings } = useCart();
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
 
@@ -38,10 +38,10 @@ const Navbar = () => {
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h4>
               <div className="fw-bold text-dark mt-1 d-md-none" style={{ fontSize: '0.6rem' }}>
-                Vasanth - +91 93427 58753
+                Vasanth - {settings?.phone || '+91 93427 58753'}
               </div>
               <div className="fw-bold text-dark mt-1 d-none d-md-block" style={{ fontSize: '1.1rem' }}>
-                Vasanth - <span style={{ letterSpacing: '0.5px' }}>+91 93427 58753</span>
+                Vasanth - <span style={{ letterSpacing: '0.5px' }}>{settings?.phone || '+91 93427 58753'}</span>
               </div>
             </div>
           </Link>
