@@ -175,64 +175,104 @@ async function sendContactEmails({ name, phone, email, interest, message }) {
             tls: { rejectUnauthorized: false }
         });
 
-        const emailBodyHtml = (title, intro) => \`
-            <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fff8f0;">
-                <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
-                    <img src="cid:logo" alt="Kaviya Crackers Logo" style="height: 70px; border-radius: 8px; margin-bottom: 10px;" />
-                    <h2 style="color: #ff7a00; margin: 0; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
-                    <p style="color: #6c757d; font-size: 0.9rem; margin-top: 4px; margin-bottom: 0;">\${title}</p>
-                </div>
-                
-                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
-                    <p style="color: #333; margin-top: 0;">\${intro}</p>
-                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Contact Details</h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                        <tr><td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td><td style="padding: 4px 0; color: #333;">\${name}</td></tr>
-                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Phone:</strong></td><td style="padding: 4px 0; color: #333;">\${phone}</td></tr>
-                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Email:</strong></td><td style="padding: 4px 0; color: #333;">\${email || 'N/A'}</td></tr>
-                        <tr><td style="padding: 4px 0; color: #6c757d;"><strong>Interest:</strong></td><td style="padding: 4px 0; color: #333;">\${interest || 'General'}</td></tr>
-                    </table>
-                    
-                    <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Message</h3>
-                    <p style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #333; font-size: 0.95rem; line-height: 1.5; margin: 0; white-space: pre-wrap;">\${message || 'No message provided.'}</p>
-                </div>
+        const emailBodyHtml = (title, intro) => `
+    <div style="font-family: 'Outfit', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 12px; background-color: #fff8f0;">
+        <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #eaeaea; padding-bottom: 15px;">
+            <img src="cid:logo" alt="Kaviya Crackers Logo" style="height: 70px; border-radius: 8px; margin-bottom: 10px;" />
+            <h2 style="color: #ff7a00; margin: 0; font-weight: bold; letter-spacing: 0.5px;">Kaviya Crackers</h2>
+            <p style="color: #6c757d; font-size: 0.9rem; margin-top: 4px; margin-bottom: 0;">${title}</p>
+        </div>
 
-                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
-                    <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">Contact Support</h4>
-                    <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
-                    <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
-                    <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
-                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
-                </div>
-            </div>
-        \`;
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee;">
+            <p style="color: #333; margin-top: 0;">${intro}</p>
+
+            <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Contact Details</h3>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <tr>
+                    <td style="padding: 4px 0; color: #6c757d; width: 120px;"><strong>Name:</strong></td>
+                    <td style="padding: 4px 0; color: #333;">${name}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; color: #6c757d;"><strong>Phone:</strong></td>
+                    <td style="padding: 4px 0; color: #333;">${phone}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; color: #6c757d;"><strong>Email:</strong></td>
+                    <td style="padding: 4px 0; color: #333;">${email || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px 0; color: #6c757d;"><strong>Interest:</strong></td>
+                    <td style="padding: 4px 0; color: #333;">${interest || 'General'}</td>
+                </tr>
+            </table>
+
+            <h3 style="border-bottom: 2px solid #ff7a00; padding-bottom: 8px; margin-top: 20px; color: #1a1a1a; font-size: 1.05rem;">Message</h3>
+
+            <p style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #333; font-size: 0.95rem; line-height: 1.5; margin: 0; white-space: pre-wrap;">
+                ${message || 'No message provided.'}
+            </p>
+        </div>
+
+        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); margin-bottom: 20px; border: 1px solid #eee; text-align: center; font-size: 0.9rem; color: #333;">
+            <h4 style="color: #ff7a00; margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                Contact Support
+            </h4>
+
+            <p style="margin: 5px 0;">
+                📞 <strong>Phone:</strong>
+                <a href="tel:${sellerPhone.replace(/\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">
+                    ${sellerPhone}
+                </a>
+            </p>
+
+            <p style="margin: 5px 0;">
+                📧 <strong>Email:</strong>
+                <a href="mailto:${sellerEmail}" style="color: #ff7a00; text-decoration: none;">
+                    ${sellerEmail}
+                </a>
+            </p>
+
+            <p style="margin: 5px 0;">
+                🏠 <strong>Address:</strong> ${sellerAddress}
+            </p>
+
+            <p style="margin: 5px 0;">
+                🌐 <strong>Website:</strong>
+                <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">
+                    www.kaviyacrackers.com
+                </a>
+            </p>
+        </div>
+    </div>
+`;
 
         const attachments = [{ filename: 'kaviya_crackers_logo.jpeg', path: path.join(__dirname, 'assets', 'img', 'kaviya_crackers_logo.jpeg'), cid: 'logo' }];
 
         // Send to Seller
         if (sellerEmail) {
             await transporter.sendMail({
-                from: \`"Kaviya Crackers Store" <\${smtpUser}>\`,
+                from: `"Kaviya Crackers Store" <${smtpUser}>`,
                 to: sellerEmail,
-                subject: \`📩 New Contact Enquiry from \${name}\`,
-                html: emailBodyHtml('New Contact Enquiry', \`You have received a new contact inquiry from <strong>\${name}</strong>.\`),
+                subject: `📩 New Contact Enquiry from ${name}`,
+                html: emailBodyHtml('New Contact Enquiry', `You have received a new contact inquiry from <strong>${name}</strong>.`),
                 replyTo: email || smtpUser,
                 attachments
             });
-            console.log(\`Contact email sent to seller (\${sellerEmail})\`);
+            console.log(`Contact email sent to seller (${sellerEmail})`);
         }
 
         // Send to Customer
         if (email) {
             await transporter.sendMail({
-                from: \`"Kaviya Crackers Store" <\${smtpUser}>\`,
+                from: `"Kaviya Crackers Store" <${smtpUser}>`,
                 to: email,
-                subject: \`🎆 We received your message - Kaviya Crackers\`,
-                html: emailBodyHtml('Contact Inquiry Received', \`Dear <strong>\${name}</strong>,<br><br>Thank you for reaching out to us. We have received your message and will get back to you shortly. Here is a copy of your inquiry:\`),
+                subject: `🎆 We received your message - Kaviya Crackers`,
+                html: emailBodyHtml('Contact Inquiry Received', `Dear <strong>${name}</strong>,<br><br>Thank you for reaching out to us. We have received your message and will get back to you shortly. Here is a copy of your inquiry:`),
                 replyTo: sellerEmail || smtpUser,
                 attachments
             });
-            console.log(\`Contact confirmation sent to customer (\${email})\`);
+            console.log(`Contact confirmation sent to customer (${email})`);
         }
     } catch (err) {
         console.error('Failed to send contact emails:', err);
