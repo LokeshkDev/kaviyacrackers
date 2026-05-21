@@ -206,12 +206,31 @@ const Admin = () => {
     }
   };
 
+  const clearAdminSession = () => {
+    sessionStorage.removeItem('admin_auth');
+    sessionStorage.removeItem('admin_username');
+    setIsAuthenticated(false);
+  };
+
   useEffect(() => {
-    if (sessionStorage.getItem('admin_auth') === 'true') {
-      setIsAuthenticated(true);
-      loadData();
-      loadAdmins();
-    }
+    const validateStoredSession = async () => {
+      const storedUsername = sessionStorage.getItem('admin_username');
+      if (sessionStorage.getItem('admin_auth') !== 'true' || !storedUsername) {
+        clearAdminSession();
+        return;
+      }
+
+      try {
+        await api.get(`/admins/session/${encodeURIComponent(storedUsername)}`);
+        setIsAuthenticated(true);
+        loadData();
+        loadAdmins();
+      } catch (err) {
+        clearAdminSession();
+      }
+    };
+
+    validateStoredSession();
   }, []);
 
   const loadData = async () => {
@@ -250,6 +269,7 @@ const Admin = () => {
     const res = await login(username, password);
     if (res.success) {
       sessionStorage.setItem('admin_auth', 'true');
+      sessionStorage.setItem('admin_username', res.username || username);
       setIsAuthenticated(true);
       loadData();
       loadAdmins();
@@ -339,6 +359,10 @@ const Admin = () => {
       const res = await api.delete(`/admins/${usernameToDelete}`);
       if (res.data && res.data.success) {
         setAdminActionSuccess(`Admin "${usernameToDelete}" deleted successfully.`);
+        if (sessionStorage.getItem('admin_username') === usernameToDelete) {
+          clearAdminSession();
+          return;
+        }
         loadAdmins();
       } else {
         setAdminActionError(res.data.message || 'Failed to delete admin.');
@@ -749,7 +773,7 @@ const Admin = () => {
             </Link>
             <hr className="my-4 opacity-10" />
             <button className="nav-link border-0 text-start rounded-4 py-3 px-4 d-flex align-items-center gap-3 text-danger bg-transparent hover-soft-danger"
-                    onClick={() => { sessionStorage.removeItem('admin_auth'); setIsAuthenticated(false); }}>
+                    onClick={clearAdminSession}>
               <i className="bi bi-box-arrow-left fs-5"></i>
               <span className="fw-semibold">Logout</span>
             </button>

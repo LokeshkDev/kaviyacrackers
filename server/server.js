@@ -746,13 +746,6 @@ async function seedDatabase() {
                 { username: process.env.ADMIN_USERNAME || 'admin', password: process.env.ADMIN_PASSWORD || '123456' }
             ]);
             console.log('Seeding admin users completed!');
-        } else {
-            // Ensure lokesh exists just in case
-            const lokeshExists = await AdminUser.findOne({ username: 'lokesh' });
-            if (!lokeshExists) {
-                await AdminUser.create({ username: 'lokesh', password: '241522' });
-                console.log('Admin lokesh created!');
-            }
         }
     } catch (err) {
         console.error('Seeding error:', err);
@@ -764,22 +757,27 @@ app.post('/api/login', async (req, res) => {
     console.log('Login attempt:', req.body.username);
     const { username, password } = req.body;
     try {
-        // Find user in db first
         const dbAdmin = await AdminUser.findOne({ username });
-        if (dbAdmin) {
-            if (dbAdmin.password === password) {
-                return res.json({ success: true });
-            }
+        if (dbAdmin && dbAdmin.password === password) {
+            return res.json({ success: true, username: dbAdmin.username });
         }
-        
-        // Fallback to env variables (for backward compatibility if needed)
-        if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
-            return res.json({ success: true });
-        }
-        
+
         res.status(401).json({ success: false, message: 'Invalid Credentials' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Database error during login' });
+    }
+});
+
+app.get('/api/admins/session/:username', async (req, res) => {
+    try {
+        const admin = await AdminUser.findOne({ username: req.params.username }, 'username');
+        if (!admin) {
+            return res.status(401).json({ success: false, message: 'Admin user no longer exists' });
+        }
+
+        res.json({ success: true, username: admin.username });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Failed to validate admin session' });
     }
 });
 
