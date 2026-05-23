@@ -24,7 +24,6 @@ Crawl-delay: 1
 
 # Declare sitemap
 Sitemap: https://kaviyacrackers.co.in/sitemap.xml
-Sitemap: https://kaviyacrackers.co.in/sitemap-products.xml
 
-# Host specification
-Host: https://kaviyacrackers.co.in
+# Host specification (Yandex)
+Host: kaviyacrackers.co.in
