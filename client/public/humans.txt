@@ -1,0 +1,16 @@
+/* TEAM */
+Company: Kaviya Crackers
+Location: Sivakasi, Tamil Nadu, India
+Website: https://kaviyacrackers.co.in
+
+/* THANKS */
+Bootstrap: https://getbootstrap.com/
+React: https://react.dev/
+Swiper: https://swiperjs.com/
+AOS: https://michalsnik.github.io/aos/
+
+/* SITE */
+Last Update: 2026-05-23
+Standards: HTML5, CSS3, JavaScript ES6+
+Components: React, Vite, Bootstrap 5
+Hosted on: [Server Information]

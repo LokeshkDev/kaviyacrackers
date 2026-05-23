@@ -1,0 +1,30 @@
+# Robots.txt for Kaviya Crackers - kaviyacrackers.co.in
+# This file helps search engines crawl and index the website
+
+# Allow all search engines
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /*.json
+Disallow: /node_modules/
+Disallow: /dist/
+Disallow: /.git
+Disallow: /src/
+
+# Google Bot
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing Bot
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Declare sitemap
+Sitemap: https://kaviyacrackers.co.in/sitemap.xml
+Sitemap: https://kaviyacrackers.co.in/sitemap-products.xml
+
+# Host specification
+Host: https://kaviyacrackers.co.in

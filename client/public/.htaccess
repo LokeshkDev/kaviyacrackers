@@ -1,0 +1,224 @@
+# Kaviya Crackers - SEO & Performance Optimization .htaccess
+# Apache Server Configuration for Kaviyacrackers.co.in
+
+# ============================================
+# ENABLE MOD_REWRITE & SET BASE
+# ============================================
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # ============================================
+    # SECURITY - HIDE SENSITIVE FILES
+    # ============================================
+    RewriteRule ^\.git - [F,L]
+    RewriteRule ^\.env$ - [F,L]
+    RewriteRule ^\.htaccess$ - [F,L]
+    RewriteRule ^\.htpasswd$ - [F,L]
+    RewriteRule ^node_modules - [F,L]
+    RewriteRule ^src/ - [F,L]
+    RewriteRule ^dist/ - [F,L]
+    RewriteRule ^server/ - [F,L]
+
+    # ============================================
+    # REMOVE WWW & FORCE HTTPS
+    # ============================================
+    # Redirect non-www to www (optional - comment if not needed)
+    # RewriteCond %{HTTP_HOST} ^kaviyacrackers\.co\.in$ [NC]
+    # RewriteRule ^(.*)$ https://www.kaviyacrackers.co.in/$1 [R=301,L]
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # ============================================
+    # REACT ROUTER - SPA ROUTING
+    # ============================================
+    # Don't apply to files and directories
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+    
+    # Route all requests to index.html for React Router
+    RewriteRule ^ /index.html [QSA,L]
+</IfModule>
+
+# ============================================
+# CUSTOM ERROR PAGES
+# ============================================
+ErrorDocument 400 /error/400.html
+ErrorDocument 401 /error/401.html
+ErrorDocument 403 /error/403.html
+ErrorDocument 404 /error/404.html
+ErrorDocument 500 /error/500.html
+ErrorDocument 502 /error/502.html
+ErrorDocument 503 /error/503.html
+
+# ============================================
+# FILE COMPRESSION & CACHING
+# ============================================
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/xml application/xhtml+xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# ============================================
+# BROWSER CACHING
+# ============================================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType image/x-win-bitmap "access plus 1 year"
+    
+    # CSS & JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType application/x-javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    
+    # HTML - Don't cache
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # Default
+    ExpiresDefault "access plus 2 days"
+</IfModule>
+
+# ============================================
+# GZIP COMPRESSION FOR STATIC FILES
+# ============================================
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|css|xml|gz)$">
+        Header append Vary: Accept-Encoding
+    </FilesMatch>
+</IfModule>
+
+# ============================================
+# SEO HEADERS
+# ============================================
+<IfModule mod_headers.c>
+    # X-UA-Compatible
+    Header set X-UA-Compatible "IE=edge"
+    
+    # Prevent MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+    
+    # Clickjacking protection
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; connect-src 'self' https:; frame-ancestors 'self';"
+    
+    # Permissions Policy
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# ============================================
+# CHARSET
+# ============================================
+AddDefaultCharset UTF-8
+<IfModule mod_mime.c>
+    AddCharset UTF-8 .html .css .js .xml .json .rss .atom .svg
+</IfModule>
+
+# ============================================
+# DISABLE DIRECTORY LISTING
+# ============================================
+Options -Indexes
+
+# ============================================
+# PREVENT ACCESS TO SPECIFIC FILES
+# ============================================
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ============================================
+# REDIRECT COMMON MISSING FILES
+# ============================================
+<IfModule mod_rewrite.c>
+    RewriteRule ^favicon\.ico$ /favicon.jpeg [R=301,L]
+    RewriteRule ^favicon\.png$ /favicon.jpeg [R=301,L]
+</IfModule>
+
+# ============================================
+# SEO FRIENDLY URL REDIRECTS
+# ============================================
+<IfModule mod_rewrite.c>
+    # Redirect old product URLs to new structure (customize as needed)
+    # RewriteRule ^old-url$ /new-url [R=301,L]
+    
+    # Remove trailing slashes for non-directory URLs
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.+)/$ /$1 [R=301,L]
+</IfModule>
+
+# ============================================
+# GZIP COMPRESSION
+# ============================================
+<IfModule mod_filter.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/x-component text/x-cross-domain-policy text/javascript application/javascript application/x-javascript application/json
+</IfModule>
+
+# ============================================
+# KEEPALIVE & CONNECTION OPTIMIZATION
+# ============================================
+<IfModule mod_headers.c>
+    Header set Connection keep-alive
+</IfModule>
+
+# ============================================
+# PRELOAD & PREFETCH OPTIMIZATION
+# ============================================
+<FilesMatch "\.(woff|woff2)$">
+    Header set Cache-Control "max-age=31536000, public"
+    Header set Link "<https://fonts.googleapis.com>; rel=preconnect"
+</FilesMatch>
+
+# ============================================
+# GOOGLE PAGESPEED INSIGHTS COMPATIBILITY
+# ============================================
+<IfModule mod_rewrite.c>
+    # Ensure clean URLs for SPA
+    RewriteCond %{REQUEST_URI} !^/sitemap\.xml$
+    RewriteCond %{REQUEST_URI} !^/robots\.txt$
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# ============================================
+# PREVENT HOTLINKING OF IMAGES
+# ============================================
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?kaviyacrackers\.co\.in/ [NC]
+    RewriteRule \.(gif|jpg|jpeg|png|webp|svg)$ - [NC,F,L]
+</IfModule>

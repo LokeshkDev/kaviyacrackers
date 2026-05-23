@@ -1,0 +1,6 @@
+Contact: security@kaviyacrackers.co.in
+Expires: 2027-05-23T18:13:05.412+05:30
+Preferred-Languages: en
+Canonical: https://kaviyacrackers.co.in/.well-known/security.txt
+Policy: https://kaviyacrackers.co.in/security-policy
+Acknowledgments: https://kaviyacrackers.co.in/security-acknowledgments

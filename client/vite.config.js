@@ -8,6 +8,21 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      // Minify for better performance
+      minify: 'terser',
+      rollupOptions: {
+        output: {
+          // Optimize chunk size
+          manualChunks: {
+            'vendor': ['react', 'react-dom', 'react-router-dom'],
+            'bootstrap': ['bootstrap'],
+          }
+        }
+      }
+    },
     server: {
       proxy: {
         '/api': {
@@ -15,6 +30,13 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         }
+      },
+      // SEO friendly headers for development
+      middlewareMode: false,
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-XSS-Protection': '1; mode=block'
       }
     },
     preview: {
@@ -24,6 +46,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         }
+      },
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-XSS-Protection': '1; mode=block'
       }
     }
   }
