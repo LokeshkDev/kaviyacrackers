@@ -11,14 +11,17 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      // Minify for better performance
-      minify: 'terser',
+      // Minify for better performance (use esbuild to avoid optional terser dependency)
+      minify: 'esbuild',
       rollupOptions: {
         output: {
           // Optimize chunk size
-          manualChunks: {
-            'vendor': ['react', 'react-dom', 'react-router-dom'],
-            'bootstrap': ['bootstrap'],
+          manualChunks(id) {
+            if (id && id.includes('node_modules')) {
+              if (id.includes('bootstrap')) return 'bootstrap';
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'vendor';
+              return 'vendor';
+            }
           }
         }
       }
