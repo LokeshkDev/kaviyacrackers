@@ -554,7 +554,7 @@ async function printInvoice(id) {
             .info-block h4 { color: #7209B7; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 0; }
             .info-block p { margin: 0 0 6px 0; font-size: 14px; color: #444; line-height: 1.5; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-            th { background: #7209B7; color: white; padding: 15px 12px; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+            th { background: #7209B7; color: white; padding: 15px 12px; text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
             th:nth-child(4), th:nth-child(5), th:nth-child(6) { text-align: right; }
             .totals { width: 300px; float: right; }
             .totals-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #555; font-size: 14px; }

@@ -600,7 +600,7 @@ const Admin = () => {
     .info-box h4 { color: #7209B7; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
     .info-box p { font-size: 13px; color: #555; line-height: 1.7; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    thead th { background: #7209B7; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    thead th { background: #7209B7; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
     thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
     tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
     tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }

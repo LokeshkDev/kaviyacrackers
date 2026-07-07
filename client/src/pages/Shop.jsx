@@ -193,7 +193,7 @@ const Shop = () => {
                             </div>
                           )}
                         </td>
-                        <td className="text-end pe-1 pe-md-4 fw-bold text-primary fs-6" style={{ width: '70px' }}>₹{(cart[p.id] || 0) * p.rate}</td>
+                        <td className="text-center pe-1 pe-md-4 fw-bold text-primary fs-6" style={{ width: '70px' }}>₹{(cart[p.id] || 0) * p.rate}</td>
                       </tr>
                     ))}
                   </React.Fragment>

@@ -135,18 +135,18 @@ async function getContactSettings() {
         const map = {};
         settings.forEach(s => map[s.key] = s.value);
         return {
-            phone: map.phone || cleanEnv('SELLER_PHONE') || '+91 93427 58753',
+            phone: map.phone || cleanEnv('SELLER_PHONE') || '9342758753',
             whatsapp: map.whatsapp || cleanEnv('SELLER_WHATSAPP') || '919342758753',
-            email: map.email || cleanEnv('SELLER_EMAIL') || 'kaviyacrackers2024@gmail.com',
-            address: map.address || cleanEnv('SELLER_ADDRESS') || 'Kaviya Crackers, Sivakasi'
+            email: map.email || cleanEnv('SELLER_EMAIL') || 'kaviyacrackers5@gmail.com',
+            address: map.address || cleanEnv('SELLER_ADDRESS') || '2/554-G, Krishnasamy College Back side, Muthalnayakkanpatti, Sivaksi to Sattur Main Road'
         };
     } catch (err) {
         console.error('Error fetching contact settings:', err);
         return {
-            phone: '+91 93427 58753',
+            phone: '9342758753',
             whatsapp: '919342758753',
-            email: 'kaviyacrackers2024@gmail.com',
-            address: 'Kaviya Crackers, Sivakasi'
+            email: 'kaviyacrackers5@gmail.com',
+            address: '2/554-G, Krishnasamy College Back side, Muthalnayakkanpatti, Sivaksi to Sattur Main Road'
         };
     }
 }
@@ -239,8 +239,8 @@ async function sendContactEmails({ name, phone, email, interest, message }) {
 
             <p style="margin: 5px 0;">
                 🌐 <strong>Website:</strong>
-                <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">
-                    www.kaviyacrackers.com
+                <a href="https://www.kaviyacrackers.co.in" style="color: #ff7a00; text-decoration: none;">
+                    www.kaviyacrackers.co.in
                 </a>
             </p>
         </div>
@@ -382,7 +382,7 @@ async function sendOrderEmails(order) {
                     <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
                     <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
                     <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
-                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
+                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.co.in" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.co.in</a></p>
                 </div>
 
                 <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #9c9c9c; border-top: 1px solid #eaeaea; padding-top: 15px;">
@@ -414,7 +414,7 @@ Contact Support:
 - Phone: \${sellerPhone}
 - Email: \${sellerEmail}
 - Address: \${sellerAddress}
-- Website: www.kaviyacrackers.com
+- Website: www.kaviyacrackers.co.in
 --------------------------------------------
 Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
         `.trim();
@@ -601,7 +601,7 @@ async function sendStatusUpdateEmail(order) {
                     <p style="margin: 5px 0;">📞 <strong>Phone:</strong> <a href="tel:\${sellerPhone.replace(/\\s+/g, '')}" style="color: #ff7a00; text-decoration: none;">\${sellerPhone}</a></p>
                     <p style="margin: 5px 0;">📧 <strong>Email:</strong> <a href="mailto:\${sellerEmail}" style="color: #ff7a00; text-decoration: none;">\${sellerEmail}</a></p>
                     <p style="margin: 5px 0;">🏠 <strong>Address:</strong> \${sellerAddress}</p>
-                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.com" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.com</a></p>
+                    <p style="margin: 5px 0;">🌐 <strong>Website:</strong> <a href="https://www.kaviyacrackers.co.in" style="color: #ff7a00; text-decoration: none;">www.kaviyacrackers.co.in</a></p>
                 </div>
 
                 <div style="text-align: center; margin-top: 30px; font-size: 0.75rem; color: #9c9c9c; border-top: 1px solid #eaeaea; padding-top: 15px;">
@@ -641,7 +641,7 @@ Contact Support:
 - Phone: \${sellerPhone}
 - Email: \${sellerEmail}
 - Address: \${sellerAddress}
-- Website: www.kaviyacrackers.com
+- Website: www.kaviyacrackers.co.in
 --------------------------------------------
 Thank you for shopping with Kaviya Crackers! This is an automated enquiry email.
         `.trim();
