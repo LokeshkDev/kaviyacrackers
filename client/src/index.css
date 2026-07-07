@@ -751,6 +751,7 @@ tr:has(.dropdown-menu.show) {
         height: 100vh;
         z-index: 1060 !important;
         width: 280px;
+        overflow-y: auto;
     }
     .admin-sidebar.show {
         transform: translateX(0);
