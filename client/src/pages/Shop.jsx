@@ -16,6 +16,10 @@ const Shop = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '', pincode: '' });
 
+  // Image Popup State
+  const [showImagePopup, setShowImagePopup] = useState(false);
+  const [imagePopupProduct, setImagePopupProduct] = useState(null);
+
   useEffect(() => {
     const load = async () => {
       const data = await fetchData();
@@ -53,6 +57,57 @@ const Shop = () => {
     });
     return total;
   }, [cart, products]);
+
+  const productsWithImages = useMemo(() => {
+    return filteredProducts.filter(p => p.image);
+  }, [filteredProducts]);
+
+  useEffect(() => {
+    if (!showImagePopup) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowLeft') {
+        handlePrevImage();
+      } else if (e.key === 'ArrowRight') {
+        handleNextImage();
+      } else if (e.key === 'Escape') {
+        closeImagePopup();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showImagePopup]);
+
+  const handleImageClick = (product, e) => {
+    e.stopPropagation();
+    setImagePopupProduct(product);
+    setShowImagePopup(true);
+  };
+
+  const handlePrevImage = () => {
+    setImagePopupProduct(prev => {
+      const currIdx = productsWithImages.findIndex(p => p.id === prev.id);
+      if (currIdx < 0) return prev;
+      const newIdx = currIdx <= 0 ? productsWithImages.length - 1 : currIdx - 1;
+      return productsWithImages[newIdx];
+    });
+  };
+
+  const handleNextImage = () => {
+    setImagePopupProduct(prev => {
+      const currIdx = productsWithImages.findIndex(p => p.id === prev.id);
+      if (currIdx < 0) return prev;
+      const newIdx = currIdx >= productsWithImages.length - 1 ? 0 : currIdx + 1;
+      return productsWithImages[newIdx];
+    });
+  };
+
+  const canNavigateImage = showImagePopup && imagePopupProduct && productsWithImages.some(p => p.id === imagePopupProduct.id);
+
+  const closeImagePopup = () => {
+    setShowImagePopup(false);
+    setImagePopupProduct(null);
+  };
 
   const handleOpenEnquiry = () => {
     if (totalAmount < 3000) {
@@ -156,6 +211,8 @@ const Shop = () => {
                             width="60"
                             height="60"
                             className="rounded-3 shadow-sm object-fit-cover"
+                            style={{ cursor: 'pointer' }}
+                            onClick={(e) => handleImageClick(p, e)}
                             onError={(e) => { e.target.src = logo; }}
                           />
                         </td>
@@ -167,6 +224,8 @@ const Shop = () => {
                               width="40"
                               height="40"
                               className="rounded-2 shadow-sm object-fit-cover me-2 d-md-none mt-1"
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => handleImageClick(p, e)}
                               onError={(e) => { e.target.src = logo; }}
                             />
                             <div>
@@ -312,6 +371,52 @@ const Shop = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Popup Modal */}
+      {showImagePopup && imagePopupProduct && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1200 }} onClick={closeImagePopup}>
+          <div className="modal-dialog modal-dialog-centered modal-xl">
+            <div className="modal-content bg-transparent border-0 shadow-none" onClick={e => e.stopPropagation()}>
+              <div className="position-relative text-center">
+                <button type="button" className="btn-close btn-close-white position-absolute top-0 end-0 m-3" style={{ zIndex: 10, fontSize: '1.5rem' }} onClick={closeImagePopup}></button>
+
+                <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
+                  {canNavigateImage && (
+                    <button className="btn btn-dark rounded-circle position-absolute start-0 ms-3 d-flex align-items-center justify-content-center shadow-lg" style={{ width: '50px', height: '50px', zIndex: 5, opacity: 0.9 }} onClick={handlePrevImage}>
+                      <i className="bi bi-chevron-left fs-4"></i>
+                    </button>
+                  )}
+
+                  <img
+                    src={imagePopupProduct.image ? (imagePopupProduct.image.startsWith('http') ? imagePopupProduct.image : `/${imagePopupProduct.image}`) : logo}
+                    alt={imagePopupProduct.name}
+                    className="img-fluid rounded-4 shadow-lg"
+                    style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                    onError={(e) => { e.target.src = logo; }}
+                  />
+
+                  {canNavigateImage && (
+                    <button className="btn btn-dark rounded-circle position-absolute end-0 me-3 d-flex align-items-center justify-content-center shadow-lg" style={{ width: '50px', height: '50px', zIndex: 5, opacity: 0.9 }} onClick={handleNextImage}>
+                      <i className="bi bi-chevron-right fs-4"></i>
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-white mt-3">
+                  <h5 className="fw-bold mb-1">{imagePopupProduct.name}</h5>
+                  <p className="mb-0 opacity-75">{imagePopupProduct.content}</p>
+                </div>
+
+                {canNavigateImage && (
+                  <div className="text-white-50 mt-2 small">
+                    {productsWithImages.findIndex(p => p.id === imagePopupProduct.id) + 1} / {productsWithImages.length}
+                  </div>
+                )}
               </div>
             </div>
           </div>
