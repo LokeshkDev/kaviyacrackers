@@ -905,6 +905,16 @@ app.post('/api/data', async (req, res) => {
     }
 });
 
+// Get all orders
+app.get('/api/orders', async (req, res) => {
+    try {
+        const orders = await Order.find().sort({ date: -1 });
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Update specific order status
 app.patch('/api/orders/:id', async (req, res) => {
     try {
