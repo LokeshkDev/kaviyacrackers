@@ -111,6 +111,9 @@ const OrderSchema = new mongoose.Schema({
     customerAddress: String,
     items: Array,
     totalAmount: Number,
+    subtotalAmount: Number,
+    discountPercent: Number,
+    discountAmount: Number,
     date: { type: Date, default: Date.now },
     status: { type: String, default: 'Pending' },
     cancellationNote: { type: String, default: '' }

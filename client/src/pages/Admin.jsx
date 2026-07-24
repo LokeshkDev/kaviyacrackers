@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
 import { Link } from 'react-router-dom';
+import BillingSection from '../components/BillingSection';
 
 const Admin = () => {
   const { fetchData, login, updateOrderStatus } = useApi();
@@ -9,10 +10,26 @@ const Admin = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [orders, setOrders] = useState([]);
+  const [orderTab, setOrderTab] = useState('online');
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const isStoreBill = order.cancellationNote && (
+        order.cancellationNote.includes('Billing Panel') || 
+        order.cancellationNote.includes('Estimate invoice')
+      );
+      if (orderTab === 'billing') {
+        return isStoreBill;
+      } else {
+        return !isStoreBill;
+      }
+    });
+  }, [orders, orderTab]);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [settings, setSettings] = useState({ phone: '', whatsapp: '', email: '', address: '' });
   const [settingsSaveStatus, setSettingsSaveStatus] = useState(null);
@@ -555,157 +572,319 @@ const Admin = () => {
     setShowOrderModal(true);
   };
 
-  const handleDownloadInvoice = async (order) => {
-    const invoiceDate = new Date(order.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const invoiceNo = `KAV-${String(order._id).slice(-6).toUpperCase()}`;
-    const items = order.items || [];
+  const handleDownloadInvoice = (order) => {
+    // Synchronously open the popup window to prevent browser popup blockers!
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      alert('Popup blocked! Please allow popups for this site to print invoices.');
+      return;
+    }
 
-    // Convert logo to base64 data URI for embedding in the invoice
-    let logoBase64 = '';
+    let parsedDate = '';
     try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = logo;
-      });
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      logoBase64 = canvas.toDataURL('image/jpeg', 0.9);
-    } catch (_) { /* fallback: no logo */ }
+      const d = order.date ? new Date(order.date) : new Date();
+      parsedDate = isNaN(d.getTime()) 
+        ? new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-')
+        : d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    } catch (_) {
+      parsedDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+    }
+
+    const cancellation = order.cancellationNote || '';
+    const isInvoice = cancellation.includes('INV') || cancellation.includes('Invoice');
+    const docTitleLabel = isInvoice ? 'Tax Invoice' : 'Estimate';
+    const docNoLabel = isInvoice ? 'Invoice No.' : 'Estimate No.';
+    
+    const docNo = cancellation.includes('Billing Panel')
+      ? cancellation.split(':').pop().trim()
+      : (cancellation.includes('Invoice:')
+          ? cancellation.split('Invoice:').pop().trim()
+          : `KAV-${String(order._id).slice(-6).toUpperCase()}`);
+
+    const items = order.items || [];
+    const subtotal = order.subtotalAmount || items.reduce((sum, item) => sum + ((item.originalRate || item.rate || 0) * (item.quantity || 0)), 0);
+    const totalAmount = order.totalAmount || 0;
+    const discountAmount = order.discountAmount !== undefined ? order.discountAmount : Math.max(0, subtotal - totalAmount);
+    const discountPercent = order.discountPercent !== undefined ? order.discountPercent : (subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0);
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+    const minRows = 11;
+    const paddingCount = Math.max(0, minRows - items.length);
+    let paddingRowsHtml = '';
+    for (let i = 0; i < paddingCount; i++) {
+      paddingRowsHtml += `
+        <tr style="height: 35px;">
+          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+          <td style="border-bottom: 1.5px solid #000;"></td>
+        </tr>
+      `;
+    }
+
+    // Helper: Convert a number to Indian Rupees in words
+    const numberToWords = (num) => {
+      if (num === 0) return 'Zero Rupees Only';
+      const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+      const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+      function g(n) {
+        if (n < 20) return a[n];
+        const digit = n % 10;
+        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+      }
+
+      function h(n) {
+        if (n < 100) return g(n);
+        const rest = n % 100;
+        return a[Math.floor(n / 100)] + ' Hundred' + (rest ? ' and ' + g(rest) : '');
+      }
+
+      function handleSection(n, label) {
+        if (n === 0) return '';
+        return h(n) + ' ' + label + ' ';
+      }
+
+      let str = '';
+      let rupees = Math.floor(num);
+      let paise = Math.round((num - rupees) * 100);
+
+      const crores = Math.floor(rupees / 10000000);
+      rupees %= 10000000;
+      const lakhs = Math.floor(rupees / 100000);
+      rupees %= 100000;
+      const thousands = Math.floor(rupees / 1000);
+      rupees %= 1000;
+
+      str += handleSection(crores, 'Crore');
+      str += handleSection(lakhs, 'Lakh');
+      str += handleSection(thousands, 'Thousand');
+      str += handleSection(rupees, '');
+
+      str = str.trim() + ' Rupees';
+
+      if (paise > 0) {
+        str += ' and ' + g(paise) + ' Paise';
+      }
+
+      return str + ' Only';
+    };
+
+    const companyNameText = settings?.companyName || 'KAVIYA CRACKERS';
+    const companyAddressText = settings?.address || '3/574, Sivakasi to Sattur Main Road, Near Anuupankulam Bus Stop, Sivakasi - 626189, Virudhunagar (Dt.), Tamil Nadu.';
+    const companyPhoneText = settings?.phone || '8248361625';
 
     const htmlContent = `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Invoice - ${invoiceNo}</title>
+  <title>${docTitleLabel} - ${docNo}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; padding: 40px; }
-    .invoice-container { max-width: 800px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #7209B7; }
-    .brand { display: flex; align-items: center; gap: 16px; }
-    .brand-logo { width: 70px; height: 70px; border-radius: 14px; border: 2px solid #7209B7; object-fit: cover; box-shadow: 0 4px 12px rgba(114, 9, 183, 0.15); }
-    .brand-info h1 { color: #7209B7; font-size: 28px; margin-bottom: 4px; }
-    .brand-info p { color: #888; font-size: 13px; }
-    .invoice-meta { text-align: right; }
-    .invoice-meta h2 { color: #7209B7; font-size: 32px; letter-spacing: 2px; margin-bottom: 10px; }
-    .invoice-meta p { color: #666; font-size: 13px; line-height: 1.6; }
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 30px; }
-    .info-box { flex: 1; }
-    .info-box h4 { color: #7209B7; text-transform: uppercase; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 8px; }
-    .info-box p { font-size: 13px; color: #555; line-height: 1.7; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-    thead th { background: #7209B7; color: #fff; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
-    thead th:last-child, thead th:nth-child(3), thead th:nth-child(4) { text-align: right; }
-    tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
-    tbody td:last-child, tbody td:nth-child(3), tbody td:nth-child(4) { text-align: right; }
-    tbody tr:nth-child(even) { background: #fdf8f3; }
-    .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-    .totals-box { width: 280px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #666; border-bottom: 1px solid #f0f0f0; }
-    .totals-row.grand { border-bottom: none; border-top: 2px solid #7209B7; padding-top: 12px; margin-top: 4px; font-size: 18px; font-weight: 700; color: #7209B7; }
-    .footer { text-align: center; padding-top: 30px; border-top: 1px solid #eee; color: #999; font-size: 12px; }
-    .footer p { margin-bottom: 4px; }
-    .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .status-pending { background: #fff3cd; color: #856404; }
-    .status-processing { background: #cce5ff; color: #004085; }
-    .status-delivered { background: #d4edda; color: #155724; }
-    .status-cancelled { background: #f8d7da; color: #721c24; }
-    @media print { body { padding: 20px; } .no-print { display: none !important; } }
+    body { font-family: Arial, sans-serif; color: #000; background: transparent; padding: 20px; font-size: 10pt; }
+    .print-master-table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; border: 2.5px solid #000; background: transparent; }
+    .bill-sheet { width: 100%; max-width: 800px; margin: 0 auto; background: transparent; }
+    .row-flex { display: flex; }
+    .border-bottom-black { border-bottom: 2px solid #000; }
+    .border-right-black { border-right: 2px solid #000; }
+    .header-logo { width: 25%; display: flex; align-items: center; justify-content: center; min-height: 120px; }
+    .header-logo-box { width: 85px; height: 85px; border: 1.5px solid #000; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #fff; }
+    .logo-img { width: 100%; height: 100%; object-fit: cover; }
+    .header-details { width: 75%; padding: 12px; text-align: center; }
+    .header-details h1 { font-size: 19pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .header-details p { font-size: 9pt; color: #111; line-height: 1.4; margin-bottom: 2px; }
+    .buyer-box { width: 60%; padding: 12px; text-align: left; }
+    .meta-box { width: 40%; padding: 12px; text-align: left; }
+    .box-title { font-weight: bold; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 8px; text-transform: uppercase; font-size: 8.5pt; color: #333; }
+    .meta-row { display: flex; align-items: center; margin-bottom: 6px; }
+    .meta-label { font-weight: bold; width: 110px; font-size: 9.5pt; }
+    .product-table { width: 100%; border-collapse: collapse; }
+    .product-table th { border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px; font-weight: bold; text-transform: uppercase; font-size: 8.5pt; text-align: center; }
+    .product-table td { border-right: 2px solid #000; border-bottom: 1.5px solid #000; padding: 6px 8px; vertical-align: top; font-size: 9.5pt; }
+    .product-table th:last-child, .product-table td:last-child { border-right: none; }
+    .text-center { text-align: center; }
+    .text-end { text-align: right; }
+    .font-monospace { font-family: monospace; }
+    .totals-row td { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; padding: 8px; }
+    .amount-in-words-row td { padding: 12px; }
+    .declaration-box { width: 60%; padding: 12px; font-size: 8pt; line-height: 1.4; }
+    .signatory-box { padding: 12px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
+    .footer-note { text-align: center; font-weight: bold; margin-top: 15px; font-size: 9pt; }
+    @media print {
+      body { padding: 0; }
+      @page { size: A4 portrait; margin: 1cm; }
+      .d-print-none { display: none !important; }
+      thead { display: table-header-group; }
+      tbody { display: table-row-group; }
+    }
+    .watermark-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: -1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .watermark-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
   </style>
 </head>
 <body>
-  <div class="invoice-container">
-    <div class="header">
-      <div class="brand">
-        ${logoBase64 ? `<img src="${logoBase64}" alt="Kaviya Crackers" class="brand-logo" />` : ''}
-        <div class="brand-info">
-          <h1>Kaviya Crackers</h1>
-          <p>Premium Fireworks &amp; Festive Crackers</p>
-          <p>${settings?.address || 'Sivakasi, Tamil Nadu'} | ${settings?.phone || '+91 93427 58753'}</p>
-        </div>
-      </div>
-      <div class="invoice-meta">
-        <h2>INVOICE</h2>
-        <p><strong>Invoice No:</strong> ${invoiceNo}</p>
-        <p><strong>Date:</strong> ${invoiceDate}</p>
-        <p><span class="status-badge status-${(order.status || 'pending').toLowerCase()}">${order.status || 'Pending'}</span></p>
-      </div>
-    </div>
-    <div class="info-row">
-      <div class="info-box">
-        <h4>Bill To</h4>
-        <p><strong>${order.customerName || 'N/A'}</strong></p>
-        <p>${order.customerPhone || ''}</p>
-        <p>${order.customerEmail || ''}</p>
-        <p>${order.customerAddress || ''}</p>
-      </div>
-      <div class="info-box" style="text-align: right;">
-        <h4>From</h4>
-        <p><strong>Kaviya Crackers</strong></p>
-        <p>${(settings?.address || 'Festival Plaza, Main Road\\nSivakasi, Tamil Nadu').replace(/\\n/g, '<br/>')}</p>
-        <p>${settings?.phone || '+91 93427 58753'}</p>
-        <p>${settings?.email || 'kaviyacrackers5@gmail.com'}</p>
-      </div>
-    </div>
-    <table>
+  <div class="watermark-container">
+    <img src="${logo}" class="watermark-img" />
+  </div>
+  <div style="max-width: 800px; margin: 0 auto;">
+    <table class="print-master-table">
+      <!-- Repeating Header -->
       <thead>
         <tr>
-          <th>#</th>
-          <th>Item Description</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th>Amount</th>
+          <td style="padding: 0; border-bottom: 2px solid #000;">
+            <div class="bill-sheet">
+              <div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size: 11pt;">
+                ${docTitleLabel}
+              </div>
+              <div class="row-flex align-items-center">
+                <div class="header-logo border-right-black">
+                  <div class="header-logo-box">
+                    <img src="${logo}" class="logo-img" />
+                  </div>
+                </div>
+                <div class="header-details">
+                  <h1>${companyNameText}</h1>
+                  <p>${companyAddressText}</p>
+                  <p style="font-weight: bold; margin-top: 2px;">Ph: ${companyPhoneText}</p>
+                </div>
+              </div>
+            </div>
+          </td>
         </tr>
       </thead>
+      
+      <!-- Flowable body -->
       <tbody>
-        ${items.map((item, idx) => `
-          <tr>
-            <td>${idx + 1}</td>
-            <td>${item.name || 'Product'}</td>
-            <td style="text-align:right">${item.quantity || 0}</td>
-            <td style="text-align:right">₹${item.rate || 0}</td>
-            <td style="text-align:right">₹${item.subtotal || ((item.rate || 0) * (item.quantity || 0))}</td>
-          </tr>
-        `).join('')}
+        <tr>
+          <td style="padding: 0;">
+            <div class="bill-sheet">
+              <div class="row-flex border-bottom-black" style="min-height: 115px;">
+                <div class="buyer-box border-right-black">
+                  <div class="box-title">Buyer</div>
+                  <p style="font-weight: bold; font-size: 10pt; margin-bottom: 2px;">${order.customerName || 'In-Store Cash Customer'}</p>
+                  <p style="font-size: 9pt; color: #222; line-height: 1.4; white-space: pre-line;">${order.customerAddress || ''}</p>
+                  ${order.customerPhone ? `<p style="font-size: 9pt; margin-top: 4px; font-weight: 500;">Ph: ${order.customerPhone}</p>` : ''}
+                </div>
+                <div class="meta-box">
+                  <div class="meta-row">
+                    <span class="meta-label">${docNoLabel}</span>
+                    <span style="font-weight: bold;">: ${docNo}</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label">Dated</span>
+                    <span>: ${parsedDate}</span>
+                  </div>
+                </div>
+              </div>
+
+              <table class="product-table" style="width: 100%; border-collapse: collapse; border-bottom: none;">
+                <thead>
+                  <tr class="text-center">
+                    <th style="width: 50px;">S.No</th>
+                    <th>Products</th>
+                    <th style="width: 100px;">Qty</th>
+                    <th style="width: 120px;">Rate</th>
+                    <th style="width: 140px;">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map((item, idx) => `
+                    <tr>
+                      <td class="text-center" style="font-weight: bold; color: #555; border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${idx + 1}</td>
+                      <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">
+                        <div style="font-weight: bold;">${item.name || 'Product'}</div>
+                        ${item.content ? `<div style="font-size: 8pt; color: #555; font-style: italic; margin-top: 2px;">${item.content} ${item.category ? `(${item.category})` : ''}</div>` : ''}
+                      </td>
+                      <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.quantity || 0} box</td>
+                      <td class="text-end font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">₹${(item.originalRate || item.rate || 0).toFixed(2)}</td>
+                      <td class="text-end font-monospace" style="font-weight: bold; border-bottom: 1.5px solid #000;">₹${((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                  
+                  ${paddingRowsHtml}
+                </tbody>
+              </table>
+
+              <table class="totals-and-declaration-table" style="width: 100%; border-collapse: collapse; page-break-inside: avoid; break-inside: avoid; border-top: none;">
+                <tbody>
+                  <tr class="totals-row">
+                    <td style="width: 55%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Total</td>
+                    <td style="width: 15%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 8px;">${totalQty}</td>
+                    <td style="width: 15%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Sub total</td>
+                    <td style="width: 15%; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
+                  </tr>
+                  
+                  <tr>
+                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discount (${discountPercent}%)</td>
+                    <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 6px 8px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
+                  </tr>
+                  
+                  <tr>
+                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discounted Total</td>
+                    <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+                  </tr>
+                  
+                  <tr>
+                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Bill Total</td>
+                    <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 11pt; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+                  </tr>
+
+                  <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
+                    <td colSpan="5" style="border-bottom: 2px solid #000; padding: 10px;">
+                      <div style="font-size: 8.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Amount Chargeable (in words):</div>
+                      <div style="font-weight: bold; font-size: 9.5pt;">${numberToWords(totalAmount)}</div>
+                      <div class="text-end" style="font-size: 8.5pt; color: #555; font-style: italic; margin-top: -10px;">E. & O.E</div>
+                    </td>
+                  </tr>
+
+                  <tr style="height: 100px;">
+                    <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 10px; vertical-align: top;">
+                      <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Declaration</div>
+                      We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
+                    </td>
+                    <td colSpan="2" class="signatory-box" style="padding: 10px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; border: none; height: 100px;">
+                      <div style="font-weight: bold; text-transform: uppercase; font-size: 9pt;">For ${companyNameText}</div>
+                      <div style="font-size: 8.5pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
-    <div class="totals">
-      <div class="totals-box">
-        <div class="totals-row">
-          <span>Subtotal</span>
-          <span>₹${order.totalAmount || 0}</span>
-        </div>
-        <div class="totals-row">
-          <span>Discount</span>
-          <span>-₹0</span>
-        </div>
-        <div class="totals-row grand">
-          <span>Grand Total</span>
-          <span>₹${order.totalAmount || 0}</span>
-        </div>
-      </div>
-    </div>
-    <div class="footer">
-      <p><strong>Thank you for your order!</strong></p>
-      <p>For queries, call ${settings?.phone || '+91 93427 58753'} or WhatsApp us.</p>
-      <p style="margin-top:8px;">This is a computer-generated invoice.</p>
+    
+    <div class="footer-note">
+      *** Composition dealer is not eligible to collect the taxes on supply. ***
     </div>
   </div>
 </body>
 </html>`;
 
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
-    }, 500);
+    }, 300);
   };
 
   if (!isAuthenticated) {
@@ -743,7 +922,7 @@ const Admin = () => {
 
       <div className="row g-0">
         {/* Sidebar */}
-        <div className={`col-lg-2 bg-white min-vh-100 border-end p-4 sidebar shadow-sm admin-sidebar ${isSidebarOpen ? 'show' : ''}`}>
+        <div className={`col-lg-2 bg-white min-vh-100 border-end p-4 sidebar shadow-sm admin-sidebar ${isSidebarOpen ? 'show' : ''} ${isSidebarCollapsed ? 'd-lg-none' : 'd-lg-block'}`}>
           <div className="text-center mb-5 position-relative">
             <img src={logo} alt="Logo" height="50" className="rounded-2 shadow-sm" />
             <h6 className="mt-3 fw-bold text-uppercase small tracking-widest text-primary">Kaviya Admin</h6>
@@ -757,6 +936,7 @@ const Admin = () => {
               { id: 'products', icon: 'box-seam', label: 'Products' },
               { id: 'categories', icon: 'grid', label: 'Categories' },
               { id: 'orders', icon: 'cart-check', label: 'Enquiries' },
+              { id: 'billing', icon: 'receipt', label: 'Billing / Invoice' },
               { id: 'admins', icon: 'shield-lock', label: 'Admins' },
               { id: 'settings', icon: 'gear', label: 'Store Settings' },
             ].map(item => (
@@ -781,19 +961,35 @@ const Admin = () => {
         </div>
 
         {/* Main Content */}
-        <div className="col-lg-10 p-3 p-md-5 bg-white-tertiary min-vh-100 ms-auto">
+        <div className={`${isSidebarCollapsed ? 'col-lg-12 ms-0' : 'col-lg-10 ms-auto'} p-3 p-md-5 bg-white-tertiary min-vh-100 transition-all`}>
           
-          {/* Mobile Header */}
-          <div className="d-flex d-lg-none align-items-center justify-content-between mb-4 bg-white p-3 rounded-4 shadow-sm">
+          {/* Admin Header */}
+          <div className="d-flex align-items-center justify-content-between mb-4 bg-white p-3 rounded-4 shadow-sm no-print">
             <div className="d-flex align-items-center gap-3">
-              <button className="btn btn-light rounded-circle shadow-sm" onClick={() => setIsSidebarOpen(true)}>
+              {/* Mobile Sidebar Hamburger Toggle */}
+              <button className="btn btn-light rounded-circle shadow-sm d-lg-none" onClick={() => setIsSidebarOpen(true)}>
                 <i className="bi bi-list fs-4"></i>
               </button>
-              <h5 className="fw-bold m-0 text-primary">Kaviya Admin</h5>
+              
+              {/* Desktop Sidebar Collapse Toggle */}
+              <button className="btn btn-light rounded-circle shadow-sm d-none d-lg-inline-flex align-items-center justify-content-center" 
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      style={{ width: '40px', height: '40px' }}
+                      title={isSidebarCollapsed ? "Expand Main Menu" : "Collapse Main Menu"}>
+                <i className={`bi bi-${isSidebarCollapsed ? 'layout-sidebar-inset' : 'layout-sidebar'} fs-5 text-primary`}></i>
+              </button>
+              
+              <h5 className="fw-bold m-0 text-primary d-none d-sm-block">Kaviya Admin Dashboard</h5>
             </div>
-            <button className="btn btn-sm btn-outline-primary rounded-pill shadow-sm" onClick={handleSync} disabled={isSyncing}>
-              <i className={`bi bi-arrow-repeat me-1 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync'}
-            </button>
+            
+            <div className="d-flex align-items-center gap-3">
+              <span className="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 d-none d-md-inline-block fw-semibold">
+                Logged in as {sessionStorage.getItem('admin_username') || 'Admin'}
+              </span>
+              <button className="btn btn-sm btn-outline-primary rounded-pill shadow-sm py-2 px-3 fw-bold" onClick={handleSync} disabled={isSyncing}>
+                <i className={`bi bi-arrow-repeat me-1 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync'}
+              </button>
+            </div>
           </div>
 
           {activeSection === 'dashboard' && (
@@ -1001,8 +1197,8 @@ const Admin = () => {
                                   <div className="small text-muted">{p.content}</div>
                                 </td>
                                 <td className="text-center">
-                                  <div className="fw-bold text-primary">₹{p.rate}</div>
-                                  <div className="text-muted small text-decoration-line-through">₹{p.originalRate}</div>
+                                  <div className="fw-bold text-primary">₹{Number(p.rate || 0).toFixed(2)}</div>
+                                  <div className="text-muted small text-decoration-line-through">₹{Number(p.originalRate || 0).toFixed(2)}</div>
                                 </td>
                                 <td className="text-center">
                                   <div className="d-flex justify-content-center gap-1">
@@ -1045,11 +1241,35 @@ const Admin = () => {
             <div className="admin-section animate-fade-in">
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                  <h2 className="fw-bold mb-1">Customer Enquiries</h2>
-                  <p className="text-muted mb-0">Review and manage festival order enquiries</p>
+                  <h2 className="fw-bold mb-1">
+                    {orderTab === 'online' ? 'Online Customer Enquiries' : 'In-Store Saved Bills'}
+                  </h2>
+                  <p className="text-muted mb-0">
+                    {orderTab === 'online' 
+                      ? 'Review and manage festival order enquiries submitted online' 
+                      : 'Review and reprint saved store billing transactions'}
+                  </p>
                 </div>
                 <button className="btn btn-outline-primary rounded-pill px-4 fw-bold shadow-sm d-none d-lg-flex align-items-center" onClick={handleSync} disabled={isSyncing}>
                   <i className={`bi bi-arrow-repeat me-2 ${isSyncing ? 'fa-spin' : ''}`}></i> {isSyncing ? 'Syncing...' : 'Sync Orders'}
+                </button>
+              </div>
+
+              {/* Tabs navigation */}
+              <div className="d-flex border-bottom mb-4">
+                <button
+                  className="btn border-0 rounded-0 pb-3 pt-2 px-4 transition-all"
+                  style={orderTab === 'online' ? { color: '#7209B7', borderBottom: '3px solid #7209B7', fontWeight: 'bold' } : { color: '#6c757d', borderBottom: '3px solid transparent', fontWeight: 'bold', backgroundColor: 'transparent' }}
+                  onClick={() => setOrderTab('online')}
+                >
+                  <i className="bi bi-globe2 me-2"></i>Online Enquiries
+                </button>
+                <button
+                  className="btn border-0 rounded-0 pb-3 pt-2 px-4 transition-all"
+                  style={orderTab === 'billing' ? { color: '#7209B7', borderBottom: '3px solid #7209B7', fontWeight: 'bold' } : { color: '#6c757d', borderBottom: '3px solid transparent', fontWeight: 'bold', backgroundColor: 'transparent' }}
+                  onClick={() => setOrderTab('billing')}
+                >
+                  <i className="bi bi-receipt-cutoff me-2"></i>In-Store Saved Bills
                 </button>
               </div>
               
@@ -1059,18 +1279,18 @@ const Admin = () => {
                   <thead className="bg-white-tertiary border-bottom">
                     <tr>
                       <th className="ps-4 py-3">Date</th>
-                      <th className="py-3">Customer Info</th>
-                      <th className="py-3">Address & Contact</th>
-                      <th className="py-3 text-center">Total</th>
-                      <th className="py-3 text-center">Actions</th>
+                      <th>Customer Info</th>
+                      <th>Address & Contact</th>
+                      <th className="text-center">Total</th>
+                      <th className="text-center">Actions</th>
                       <th className="text-end pe-4 py-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.length === 0 ? (
-                      <tr><td colSpan="6" className="text-center py-5 text-muted">No enquiries found.</td></tr>
+                    {filteredOrders.length === 0 ? (
+                      <tr><td colSpan="6" className="text-center py-5 text-muted">No entries found under this section.</td></tr>
                     ) : (
-                      orders.map(order => (
+                      filteredOrders.map(order => (
                         <React.Fragment key={order._id}>
                           <tr style={{ overflow: 'visible', borderBottom: order.status === 'Cancelled' ? 'none' : '1px solid #dee2e6' }}>
                             <td className="ps-4 small text-muted lh-1">
@@ -1405,6 +1625,13 @@ const Admin = () => {
                   {settingsSaveStatus === 'success' && <div className="alert alert-success d-flex align-items-center gap-2"><i className="bi bi-check-circle-fill"></i>Settings saved successfully!</div>}
                   {settingsSaveStatus === 'error' && <div className="alert alert-danger d-flex align-items-center gap-2"><i className="bi bi-exclamation-triangle-fill"></i>Failed to save settings.</div>}
                   <div className="row g-4">
+                    <div className="col-12">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeCompanyName" 
+                               value={settings.companyName || ''} onChange={e => setSettings({...settings, companyName: e.target.value})} required />
+                        <label htmlFor="storeCompanyName">Company Name (Shown on Invoices, e.g. ADVAY TRADERS)</label>
+                      </div>
+                    </div>
                     <div className="col-md-6">
                       <div className="form-floating">
                         <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storePhone" 
@@ -1442,6 +1669,14 @@ const Admin = () => {
                 </form>
               </div>
             </div>
+          )}
+
+          {activeSection === 'billing' && (
+            <BillingSection 
+              products={products} 
+              settings={settings} 
+              loadData={loadData} 
+            />
           )}
         </div>
       </div>
@@ -1625,8 +1860,8 @@ const Admin = () => {
                           <td className="text-center">
                             <span className="badge bg-white-tertiary text-dark border px-3 py-2 rounded-pill fw-bold">{item.quantity || 0}</span>
                           </td>
-                          <td className="text-end text-muted">₹{item.rate || 0}</td>
-                          <td className="text-end pe-4 fw-bold text-primary">₹{item.subtotal || ((item.rate || 0) * (item.quantity || 0))}</td>
+                          <td className="text-end text-muted">₹{Number(item.rate || 0).toFixed(2)}</td>
+                          <td className="text-end pe-4 fw-bold text-primary">₹{Number(item.subtotal || ((item.rate || 0) * (item.quantity || 0))).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>

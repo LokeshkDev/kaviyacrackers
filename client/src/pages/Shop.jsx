@@ -235,9 +235,9 @@ const Shop = () => {
                           </div>
                         </td>
                         <td className="text-center" style={{ width: '65px' }}>
-                          <div className="fw-bold text-decoration-line-through mb-0 d-md-none" style={{ fontSize: '0.55rem' }}>₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
-                          <div className="fw-bold text-decoration-line-through mb-0 d-none d-md-block">₹{p.originalRate || Math.round(p.rate * 1.5)}</div>
-                          <div className="bg-success text-white fw-bold py-1 px-1 rounded-4 d-inline-block shadow-sm">₹{p.rate}</div>
+                          <div className="fw-bold text-decoration-line-through mb-0 d-md-none" style={{ fontSize: '0.55rem' }}>₹{Number(p.originalRate || Math.round(p.rate * 1.5)).toFixed(2)}</div>
+                          <div className="fw-bold text-decoration-line-through mb-0 d-none d-md-block">₹{Number(p.originalRate || Math.round(p.rate * 1.5)).toFixed(2)}</div>
+                          <div className="bg-success text-white fw-bold py-1 px-1 rounded-4 d-inline-block shadow-sm">₹{Number(p.rate || 0).toFixed(2)}</div>
                         </td>
                         <td className="text-center" style={{ width: '80px' }}>
                           {!cart[p.id] ? (
@@ -252,7 +252,7 @@ const Shop = () => {
                             </div>
                           )}
                         </td>
-                        <td className="text-center pe-1 pe-md-4 fw-bold text-primary fs-6" style={{ width: '70px' }}>₹{(cart[p.id] || 0) * p.rate}</td>
+                        <td className="text-center pe-1 pe-md-4 fw-bold text-primary fs-6" style={{ width: '70px' }}>₹{((cart[p.id] || 0) * (p.rate || 0)).toFixed(2)}</td>
                       </tr>
                     ))}
                   </React.Fragment>
@@ -350,20 +350,20 @@ const Shop = () => {
                         <div className="pe-3">
                           <div className="fw-bold small">{item.name}</div>
                           <div className="text-muted extra-small mb-1">{item.content}</div>
-                          <div className="text-muted extra-small">₹{item.rate} x {item.quantity}</div>
+                          <div className="text-muted extra-small">₹{Number(item.rate || 0).toFixed(2)} x {item.quantity}</div>
                         </div>
-                        <div className="fw-bold text-primary">₹{item.rate * item.quantity}</div>
+                        <div className="fw-bold text-primary">₹{(Number(item.rate || 0) * (item.quantity || 0)).toFixed(2)}</div>
                       </div>
                     ))}
                   </div>
                   <div className="mt-auto">
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span className="text-muted fw-bold">Items Total:</span>
-                      <span className="fw-bold">₹{totalAmount}</span>
+                      <span className="fw-bold">₹{Number(totalAmount || 0).toFixed(2)}</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center mb-4 pt-3 border-top">
                       <h4 className="fw-bold mb-0">Grand Total:</h4>
-                      <h3 className="fw-bold text-primary mb-0">₹{totalAmount}</h3>
+                      <h3 className="fw-bold text-primary mb-0">₹{Number(totalAmount || 0).toFixed(2)}</h3>
                     </div>
                     <div className="bg-white p-3 rounded-4 border small">
                       <i className="bi bi-info-circle-fill text-primary me-2"></i>
