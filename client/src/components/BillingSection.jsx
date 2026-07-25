@@ -492,8 +492,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   <title>${docTitleLabel} - ${docNo}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; color: #000; background: transparent; padding: 20px; font-size: 10pt; }
-    .print-master-table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; border: 2.5px solid #000; background: transparent; }
+    body { font-family: Arial, sans-serif; color: #000; background: transparent; padding: 20px; font-size: 10pt; position: relative; }
+    .print-master-table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; border: 2.5px solid #000; background: transparent; position: relative; z-index: 2; }
     .bill-sheet { width: 100%; max-width: 800px; margin: 0 auto; background: transparent; }
     .row-flex { display: flex; }
     .border-bottom-black { border-bottom: 2px solid #000; }
@@ -533,11 +533,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 50px;
-      height: 50px;
-      opacity: 0.08;
+      width: 300px;
+      height: 300px;
+      opacity: 0.15;
       pointer-events: none;
-      z-index: -1000;
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: center;
