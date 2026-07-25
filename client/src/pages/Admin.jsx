@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
+import logoBackground from '../img/logo-background.png';
 import { Link } from 'react-router-dom';
 import BillingSection from '../components/BillingSection';
 
@@ -580,6 +581,16 @@ const Admin = () => {
       return;
     }
 
+    const getAbsoluteUrl = (path) => {
+      if (!path) return '';
+      if (path.startsWith('http') || path.startsWith('data:')) return path;
+      const normalizedPath = path.startsWith('/') ? path : '/' + path;
+      return `${window.location.origin}${normalizedPath}`;
+    };
+
+    const logoUrl = getAbsoluteUrl(logo);
+    const logoBackgroundUrl = getAbsoluteUrl(logoBackground);
+
     let parsedDate = '';
     try {
       const d = order.date ? new Date(order.date) : new Date();
@@ -724,8 +735,8 @@ const Admin = () => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 100px;
-      height: 100px;
+      width: 300px;
+      height: 300px;
       opacity: 0.08;
       pointer-events: none;
       z-index: -1000;
@@ -742,7 +753,7 @@ const Admin = () => {
 </head>
 <body>
   <div class="watermark-container">
-    <img src="${logo}" class="watermark-img" />
+    <img src="${logoBackgroundUrl}" class="watermark-img" />
   </div>
   <div style="max-width: 800px; margin: 0 auto;">
     <table class="print-master-table">
@@ -757,7 +768,7 @@ const Admin = () => {
               <div class="row-flex align-items-center">
                 <div class="header-logo border-right-black">
                   <div class="header-logo-box">
-                    <img src="${logo}" class="logo-img" />
+                    <img src="${logoUrl}" class="logo-img" />
                   </div>
                 </div>
                 <div class="header-details">

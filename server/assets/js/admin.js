@@ -541,8 +541,8 @@ async function printInvoice(id) {
         <title>Invoice - ${order.id}</title>
         <style>
             body { font-family: 'Inter', sans-serif; padding: 40px; background: #f8f9fa; color: #333; }
-            .invoice-box { max-width: 800px; margin: auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f0f0f0; padding-bottom: 30px; }
+            .invoice-box { max-width: 800px; margin: auto; background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; position: relative; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f0f0f0; padding-bottom: 30px; position: relative; z-index: 2; }
             .logo-area { display: flex; align-items: center; gap: 20px; }
             .logo-area img { width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid #7209B7; padding: 2px; }
             .shop-name { font-size: 28px; font-weight: 800; color: #7209B7; margin-bottom: 4px; letter-spacing: -0.5px; }
@@ -559,8 +559,28 @@ async function printInvoice(id) {
             .totals { width: 300px; float: right; }
             .totals-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; color: #555; font-size: 14px; }
             .totals-row.grand { font-size: 20px; font-weight: 800; color: #7209B7; border-bottom: none; border-top: 2px solid #7209B7; padding-top: 15px; margin-top: 5px; }
-            .footer { clear: both; padding-top: 50px; text-align: center; color: #888; font-size: 13px; border-top: 1px solid #eee; margin-top: 60px; }
+            .footer { clear: both; padding-top: 50px; text-align: center; color: #888; font-size: 13px; border-top: 1px solid #eee; margin-top: 60px; position: relative; z-index: 2; }
             .footer strong { color: #7209B7; font-size: 15px; display: block; margin-bottom: 8px; }
+            .body { position: relative; z-index: 2; }
+            .watermark-container {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 50px;
+                height: 50px;
+                opacity: 0.08;
+                pointer-events: none;
+                z-index: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .watermark-img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
             @media print {
                 body { padding: 0; }
                 .invoice-box { border: none; border-radius: 0; }
@@ -569,9 +589,12 @@ async function printInvoice(id) {
     </head>
     <body>
         <div class="invoice-box">
+            <div class="watermark-container">
+                <img src="${window.location.origin}/assets/img/logo-background.png" class="watermark-img" />
+            </div>
             <div class="header">
                 <div class="logo-area">
-                    <img src="assets/img/Kaviya_crackers_logo.jpeg" alt="Logo">
+                    <img src="${window.location.origin}/assets/img/Kaviya_crackers_logo.jpeg" alt="Logo">
                     <div>
                         <div class="shop-name">Kaviya Crackers</div>
                         <div class="shop-sub">Premium Fireworks & Festive Crackers</div>

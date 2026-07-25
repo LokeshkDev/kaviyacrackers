@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
+import logoBackground from '../img/logo-background.png';
 
 // Helper: Convert a number to Indian Rupees in words
 const numberToWords = (num) => {
@@ -430,6 +431,16 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       return;
     }
 
+    const getAbsoluteUrl = (path) => {
+      if (!path) return '';
+      if (path.startsWith('http') || path.startsWith('data:')) return path;
+      const normalizedPath = path.startsWith('/') ? path : '/' + path;
+      return `${window.location.origin}${normalizedPath}`;
+    };
+
+    const logoUrl = getAbsoluteUrl(logo);
+    const logoBackgroundUrl = getAbsoluteUrl(logoBackground);
+
     let parsedDate = '';
     try {
       const d = order.date ? new Date(order.date) : new Date();
@@ -522,8 +533,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 100px;
-      height: 100px;
+      width: 50px;
+      height: 50px;
       opacity: 0.08;
       pointer-events: none;
       z-index: -1000;
@@ -540,7 +551,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
 </head>
 <body>
   <div class="watermark-container">
-    <img src="${logo}" class="watermark-img" />
+    <img src="${logoBackgroundUrl}" class="watermark-img" />
   </div>
   <div style="max-width: 800px; margin: 0 auto;">
     <table class="print-master-table">
@@ -555,7 +566,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
               <div class="row-flex align-items-center">
                 <div class="header-logo border-right-black">
                   <div class="header-logo-box">
-                    <img src="${logo}" class="logo-img" />
+                    <img src="${logoUrl}" class="logo-img" />
                   </div>
                 </div>
                 <div class="header-details">
