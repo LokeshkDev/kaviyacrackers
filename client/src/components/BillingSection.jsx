@@ -244,10 +244,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         isCustom: false
       };
 
-      // Automatically append a new blank row if this was the last row
-      if (index === prev.length - 1) {
-        updated.push(createEmptyRow());
-      }
+      // Automatically append a new blank row
+      updated.push(createEmptyRow());
       return updated;
     });
 
@@ -302,6 +300,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       updated[index].amount = qtyVal * (updated[index].originalRate || 0);
       return updated;
     });
+  };
+
+  // Add row
+  const handleAddRow = () => {
+    setBillingItems(prev => [...prev, createEmptyRow()]);
   };
 
   // Remove row
@@ -500,7 +503,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     .border-right-black { border-right: 2px solid #000; }
     .header-logo { width: 25%; display: flex; align-items: center; justify-content: center; min-height: 120px; }
     .header-logo-box { width: 85px; height: 85px; border: 1.5px solid #000; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #fff; }
-    .logo-img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-img { width: 100%; height: 100%; object-fit: contain; }
     .header-details { width: 75%; padding: 12px; text-align: center; }
     .header-details h1 { font-size: 19pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
     .header-details p { font-size: 9pt; color: #111; line-height: 1.4; margin-bottom: 2px; }
@@ -923,7 +926,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
             <div className="row g-0 border-bottom border-dark align-items-center">
               <div className="col-3 border-right-black p-3 text-center d-flex align-items-center justify-content-center" style={{ minHeight: '120px' }}>
                 <div className="p-1 border border-dark rounded-3 d-flex align-items-center justify-content-center overflow-hidden bg-white" style={{ width: '85px', height: '85px' }}>
-                  <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
               </div>
               <div className="col-9 p-3 text-center">
@@ -1030,7 +1033,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                     <th style={{ width: '110px' }}>Qty</th>
                     <th style={{ width: '130px' }}>Rate</th>
                     <th style={{ width: '140px' }}>Amount</th>
-                    <th style={{ width: '60px' }} className="d-print-none">Action</th>
+                    <th style={{ width: '90px' }} className="d-print-none">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1128,6 +1131,21 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             style={{ width: '80px' }}
                             value={item.originalRate}
                             onChange={e => handleRateChange(index, e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const nextInput = document.getElementById(`product-${index + 1}`);
+                                if (nextInput) {
+                                  nextInput.focus();
+                                } else {
+                                  handleAddRow();
+                                  setTimeout(() => {
+                                    const newRowInput = document.getElementById(`product-${index + 1}`);
+                                    if (newRowInput) newRowInput.focus();
+                                  }, 50);
+                                }
+                              }
+                            }}
                             placeholder="0.00"
                           />
                         </div>
@@ -1138,8 +1156,15 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                         ₹{(item.amount || 0).toFixed(2)}
                       </td>
 
-                      {/* Dedicated Visible Delete Button Column */}
+                      {/* Action Buttons Column */}
                       <td className="text-center d-print-none">
+                        <button 
+                          className="btn btn-sm btn-link text-success p-0 border-0 bg-transparent me-2"
+                          onClick={handleAddRow}
+                          title="Add row"
+                        >
+                          <i className="bi bi-plus-circle fs-5"></i>
+                        </button>
                         <button 
                           className="btn btn-sm btn-link text-danger p-0 border-0 bg-transparent"
                           onClick={() => handleRemoveRow(index)}
