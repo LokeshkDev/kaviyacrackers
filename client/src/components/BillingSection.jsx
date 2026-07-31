@@ -181,10 +181,10 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     const query = billingItems[activeRowIndex]?.name || '';
     const q = query.toLowerCase().trim();
     if (!q) {
-      return products.filter(p => p.active).slice(0, 10);
+      return products.filter(p => p.active !== false).slice(0, 10);
     }
     return products.filter(p => {
-      if (!p.active) return false;
+      if (p.active === false) return false;
       return p.name.toLowerCase().includes(q) || 
              (p.category && p.category.toLowerCase().includes(q));
     }).slice(0, 10);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
-import logo from '../assets/img/kaviya_crackers_logo.jpeg';
+import logo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { useCart } from '../context/CartContext';
 
 const Shop = () => {
@@ -36,7 +36,8 @@ const Shop = () => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const isActive = p.active !== false;
+      return matchesSearch && matchesCategory && isActive;
     });
   }, [products, searchTerm, selectedCategory]);
 
@@ -48,6 +49,20 @@ const Shop = () => {
     });
     return groups;
   }, [filteredProducts]);
+
+  const orderedCategoryNames = useMemo(() => {
+    const presentCats = Object.keys(groupedProducts);
+    const categoryOrderMap = new Map();
+    categories.forEach((cat, index) => {
+      categoryOrderMap.set(typeof cat === 'string' ? cat : cat.name, index);
+    });
+
+    return presentCats.sort((a, b) => {
+      const orderA = categoryOrderMap.has(a) ? categoryOrderMap.get(a) : 9999;
+      const orderB = categoryOrderMap.has(b) ? categoryOrderMap.get(b) : 9999;
+      return orderA - orderB;
+    });
+  }, [groupedProducts, categories]);
 
   const totalAmount = useMemo(() => {
     let total = 0;
@@ -194,10 +209,10 @@ const Shop = () => {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(groupedProducts).length === 0 ? (
+              {orderedCategoryNames.length === 0 ? (
                 <tr><td colSpan="5" className="text-center py-5 text-muted">No products found.</td></tr>
               ) : (
-                Object.keys(groupedProducts).map(catName => (
+                orderedCategoryNames.map(catName => (
                   <React.Fragment key={catName}>
                     <tr className="category-row">
                       <td colSpan="5" className="py-2 py-md-4 ps-3 ps-md-4 fw-bold text-dark border-bottom fs-6 fs-md-5">{catName}</td>

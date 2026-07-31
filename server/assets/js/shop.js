@@ -1,4 +1,5 @@
 let products = [];
+let masterCategories = [];
 let cart = {};
 
 async function loadProducts() {
@@ -7,9 +8,8 @@ async function loadProducts() {
         if (data && data.products) {
             products = data.products;
             
-            // Auto-populate categories from products if needed, 
-            // but better to use the categories list from DB
             if (data.categories) {
+                masterCategories = data.categories.map(c => typeof c === 'string' ? c : c.name);
                 renderCategoryFilter(data.categories);
             }
         }
@@ -40,10 +40,19 @@ function renderTable(filteredProducts = products) {
         return;
     }
 
-    const categories = [...new Set(filteredProducts.map(p => p.category))];
+    let categoriesList = [...new Set(filteredProducts.map(p => p.category))];
+    if (masterCategories.length > 0) {
+        const orderMap = new Map();
+        masterCategories.forEach((name, idx) => orderMap.set(name, idx));
+        categoriesList.sort((a, b) => {
+            const posA = orderMap.has(a) ? orderMap.get(a) : 9999;
+            const posB = orderMap.has(b) ? orderMap.get(b) : 9999;
+            return posA - posB;
+        });
+    }
     let sNo = 1;
 
-    categories.forEach(category => {
+    categoriesList.forEach(category => {
         // Category Header
         const catRow = document.createElement('tr');
         catRow.className = 'category-row';

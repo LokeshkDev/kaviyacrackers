@@ -594,7 +594,7 @@ async function printInvoice(id) {
             </div>
             <div class="header">
                 <div class="logo-area">
-                    <img src="${window.location.origin}/assets/img/Kaviya_crackers_logo.jpeg" alt="Logo">
+                    <img src="${window.location.origin}/assets/img/kaviya-crackers-logo.jpeg" alt="Logo">
                     <div>
                         <div class="shop-name">Kaviya Crackers</div>
                         <div class="shop-sub">Premium Fireworks & Festive Crackers</div>

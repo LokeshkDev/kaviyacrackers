@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import logo from '../assets/img/kaviya_crackers_logo.jpeg';
+import logo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { useCart } from '../context/CartContext';
 
 const Navbar = () => {

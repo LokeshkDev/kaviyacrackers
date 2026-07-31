@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
 import logoBackground from '../img/logo-background.png';
+import enquiryLogo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { Link } from 'react-router-dom';
 import BillingSection from '../components/BillingSection';
 
@@ -52,7 +53,7 @@ const Admin = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [newProduct, setNewProduct] = useState({ 
-    name: '', category: '', content: '', rate: '', originalRate: '', image: '' 
+    name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true 
   });
   const [newCategory, setNewCategory] = useState({ name: '', image: '' });
 
@@ -65,6 +66,20 @@ const Admin = () => {
     });
     return groups;
   }, [products]);
+
+  const orderedCategoryNames = useMemo(() => {
+    const presentCats = Object.keys(groupedProducts);
+    const categoryOrderMap = new Map();
+    categories.forEach((cat, index) => {
+      categoryOrderMap.set(typeof cat === 'string' ? cat : cat.name, index);
+    });
+
+    return presentCats.sort((a, b) => {
+      const orderA = categoryOrderMap.has(a) ? categoryOrderMap.get(a) : 9999;
+      const orderB = categoryOrderMap.has(b) ? categoryOrderMap.get(b) : 9999;
+      return orderA - orderB;
+    });
+  }, [groupedProducts, categories]);
 
   // Move product up or down within its category group
   const handleMoveProduct = async (product, direction) => {
@@ -453,6 +468,21 @@ const Admin = () => {
     }
   };
 
+  const handleToggleProductActive = async (product) => {
+    const updatedActive = !(product.active !== false);
+    const updatedProducts = products.map((p) =>
+      String(p._id) === String(product._id) ? { ...p, active: updatedActive } : p
+    );
+    setProducts(updatedProducts);
+    try {
+      await api.post('/data', { products: updatedProducts });
+    } catch (err) {
+      console.error("Failed to toggle product status:", err);
+      alert("Failed to update product status");
+      loadData();
+    }
+  };
+
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     try {
@@ -465,7 +495,7 @@ const Admin = () => {
         rate: Number.isFinite(rate) ? rate : 0,
         originalRate: Number.isFinite(originalRate) ? originalRate : 0,
         image: newProduct.image || '',
-        active: editingProduct ? editingProduct.active !== false : true,
+        active: newProduct.active !== false,
       };
       let nextProducts;
       if (editingProduct) {
@@ -479,7 +509,7 @@ const Admin = () => {
       await api.post('/data', { products: nextProducts });
       setShowProductModal(false);
       setEditingProduct(null);
-      setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '' });
+      setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true });
       loadData();
     } catch (err) {
       alert("Failed to save product");
@@ -494,7 +524,8 @@ const Admin = () => {
       content: p.content,
       rate: p.rate,
       originalRate: p.originalRate,
-      image: p.image
+      image: p.image,
+      active: p.active !== false
     });
     setShowProductModal(true);
   };
@@ -733,7 +764,7 @@ const Admin = () => {
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
-          img.src = logo;
+          img.src = enquiryLogo;
         });
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;
@@ -879,7 +910,7 @@ const Admin = () => {
           <div className="row justify-content-center">
             <div className="col-md-4">
               <div className="bg-white p-5 rounded-5 shadow-lg text-center border-top border-5 border-primary">
-                <img src={logo} alt="Logo" height="80" className="mb-4 rounded-3 shadow-sm" />
+                <img src={enquiryLogo} alt="Logo" height="80" className="mb-4 rounded-3 shadow-sm" />
                 <h3 className="fw-bold mb-4">Admin Access</h3>
                 <form onSubmit={handleLogin}>
                   <div className="form-floating mb-3">
@@ -909,7 +940,7 @@ const Admin = () => {
         {/* Sidebar */}
         <div className={`col-lg-2 bg-white min-vh-100 border-end p-4 sidebar shadow-sm admin-sidebar ${isSidebarOpen ? 'show' : ''} ${isSidebarCollapsed ? 'd-lg-none' : 'd-lg-block'}`}>
           <div className="text-center mb-5 position-relative">
-            <img src={logo} alt="Logo" height="50" className="rounded-2 shadow-sm" />
+            <img src={enquiryLogo} alt="Logo" height="50" className="rounded-2 shadow-sm" />
             <h6 className="mt-3 fw-bold text-uppercase small tracking-widest text-primary">Kaviya Admin</h6>
             <button className="btn btn-sm btn-light position-absolute top-0 end-0 d-lg-none" onClick={() => setIsSidebarOpen(false)}>
               <i className="bi bi-x-lg"></i>
@@ -1098,7 +1129,7 @@ const Admin = () => {
                     <h4 className="fw-bold mb-4">Quick Actions</h4>
                     <div className="d-flex flex-column gap-3">
                       <button className="btn btn-outline-primary rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
-                              onClick={() => { setActiveSection('products'); setTimeout(() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:''}); setShowProductModal(true); }, 100); }}>
+                              onClick={() => { setActiveSection('products'); setTimeout(() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:'', active: true}); setShowProductModal(true); }, 100); }}>
                         <span className="d-flex align-items-center gap-3">
                           <i className="bi bi-box-seam fs-4"></i> Add New Product
                         </span>
@@ -1138,7 +1169,7 @@ const Admin = () => {
                   <p className="text-muted mb-0">Manage your price list and product visibility</p>
                 </div>
                 <button className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg hover-scale" 
-                        onClick={() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:''}); setShowProductModal(true); }}>
+                        onClick={() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:'', active: true}); setShowProductModal(true); }}>
                   <i className="bi bi-plus-lg me-2"></i> Add New Product
                 </button>
               </div>
@@ -1152,30 +1183,31 @@ const Admin = () => {
                       <th className="py-3" style={{width:'60px'}}>Img</th>
                       <th className="py-3">Product Name</th>
                       <th className="py-3 text-center">Price</th>
+                      <th className="py-3 text-center" style={{width:'110px'}}>Status</th>
                       <th className="py-3 text-center" style={{width:'100px'}}>Reorder</th>
                       <th className="text-end pe-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.keys(groupedProducts).length === 0 ? (
-                      <tr><td colSpan="6" className="text-center py-5 text-muted">No products found.</td></tr>
+                    {orderedCategoryNames.length === 0 ? (
+                      <tr><td colSpan="7" className="text-center py-5 text-muted">No products found.</td></tr>
                     ) : (
-                      Object.keys(groupedProducts).map(catName => {
+                      orderedCategoryNames.map(catName => {
                         const catProducts = groupedProducts[catName];
                         return (
                           <React.Fragment key={catName}>
                             <tr style={{backgroundColor: 'rgba(114, 9, 183, 0.06)'}}>
-                              <td colSpan="6" className="py-3 ps-4 fw-bold border-bottom" style={{fontSize: '1rem', color: '#7209B7', letterSpacing: '0.3px'}}>
+                              <td colSpan="7" className="py-3 ps-4 fw-bold border-bottom" style={{fontSize: '1rem', color: '#7209B7', letterSpacing: '0.3px'}}>
                                 <i className="bi bi-folder2-open me-2"></i>
                                 {catName}
                                 <span className="badge bg-soft-primary text-primary rounded-pill ms-2 fw-normal" style={{fontSize: '0.7rem'}}>{catProducts.length} items</span>
                               </td>
                             </tr>
                             {catProducts.map((p, idx) => (
-                              <tr key={p._id}>
+                              <tr key={p._id} className={p.active === false ? 'opacity-75 bg-light' : ''}>
                                 <td className="ps-4 text-muted small">{idx + 1}</td>
                                 <td>
-                                  <img src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
+                                  <img src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : enquiryLogo} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
                                 </td>
                                 <td>
                                   <div className="fw-bold text-dark">{p.name}</div>
@@ -1184,6 +1216,24 @@ const Admin = () => {
                                 <td className="text-center">
                                   <div className="fw-bold text-primary">₹{Number(p.rate || 0).toFixed(2)}</div>
                                   <div className="text-muted small text-decoration-line-through">₹{Number(p.originalRate || 0).toFixed(2)}</div>
+                                </td>
+                                <td className="text-center">
+                                  <div className="d-flex flex-column align-items-center gap-1">
+                                    <div className="form-check form-switch p-0 m-0">
+                                      <input 
+                                        className="form-check-input cursor-pointer shadow-none m-0" 
+                                        type="checkbox" 
+                                        role="switch" 
+                                        checked={p.active !== false} 
+                                        onChange={() => handleToggleProductActive(p)}
+                                        title={p.active !== false ? "Active (Click to set Inactive)" : "Inactive (Click to set Active)"}
+                                        style={{ width: '2.4em', height: '1.2em', cursor: 'pointer' }}
+                                      />
+                                    </div>
+                                    <span className={`badge ${p.active !== false ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-pill fw-bold`} style={{ fontSize: '0.65rem' }}>
+                                      {p.active !== false ? 'Active' : 'Inactive'}
+                                    </span>
+                                  </div>
                                 </td>
                                 <td className="text-center">
                                   <div className="d-flex justify-content-center gap-1">
@@ -1719,6 +1769,23 @@ const Admin = () => {
                       <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2 mt-2 small" 
                              style={{fontSize:'0.7rem'}} placeholder="Or paste image URL/path"
                              value={newProduct.image} onChange={e => setNewProduct({...newProduct, image: e.target.value})} />
+                    </div>
+                    <div className="col-12">
+                      <div className="form-check form-switch bg-white-tertiary rounded-4 p-3 d-flex align-items-center justify-content-between m-0">
+                        <label className="form-check-label fw-bold small text-dark mb-0 cursor-pointer" htmlFor="productActiveModalSwitch">
+                          <i className={`bi ${newProduct.active ? 'bi-eye-fill text-success' : 'bi-eye-slash-fill text-muted'} me-2 fs-5 align-middle`}></i>
+                          Status: <span className={newProduct.active ? 'text-success' : 'text-danger'}>{newProduct.active ? 'Active (Visible on Store)' : 'Inactive (Hidden from Store)'}</span>
+                        </label>
+                        <input 
+                          className="form-check-input cursor-pointer shadow-none ms-0" 
+                          type="checkbox" 
+                          role="switch"
+                          id="productActiveModalSwitch"
+                          checked={newProduct.active !== false} 
+                          onChange={e => setNewProduct({ ...newProduct, active: e.target.checked })}
+                          style={{ width: '2.8em', height: '1.4em', cursor: 'pointer' }}
+                        />
+                      </div>
                     </div>
                   </div>
                   <button className="btn btn-primary w-100 py-3 rounded-pill fw-bold mt-4 shadow-lg hover-scale" type="submit">
