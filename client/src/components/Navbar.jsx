@@ -49,6 +49,54 @@ const Navbar = () => {
 
           {/* Mobile Actions: Cart + Hamburger */}
           <div className="d-flex align-items-center gap-1 gap-md-2 order-lg-last">
+            <a 
+              href="/price-list-2026.pdf" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn d-none d-md-inline-flex align-items-center gap-1 px-3 py-2 fw-bold rounded-pill shadow-sm transition-all"
+              style={{ 
+                background: 'linear-gradient(45deg, #7209B7, #3A0CA3)', 
+                color: '#fff',
+                fontSize: '0.8rem',
+                letterSpacing: '0.3px',
+                boxShadow: '0 2px 8px rgba(114, 9, 183, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(114, 9, 183, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(114, 9, 183, 0.3)';
+              }}
+            >
+              <i className="bi bi-file-earmark-text fs-6"></i>
+              <span>Price List 2026</span>
+            </a>
+            <a 
+              href="/price-list-2026.pdf" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn d-inline-flex d-md-none align-items-center gap-1 px-2 py-1 fw-bold rounded-pill shadow-sm transition-all"
+              style={{ 
+                background: 'linear-gradient(45deg, #7209B7, #3A0CA3)', 
+                color: '#fff',
+                fontSize: '0.7rem',
+                letterSpacing: '0.3px',
+                boxShadow: '0 2px 8px rgba(114, 9, 183, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(114, 9, 183, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(114, 9, 183, 0.3)';
+              }}
+            >
+              <i className="bi bi-file-earmark-text fs-6"></i>
+              <span>Price List 2026</span>
+            </a>
             <button className="nav-link position-relative p-2 border-0 bg-transparent" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
               <i className="bi bi-cart3 fs-4" style={{ color: '#7209B7' }}></i>
               {cartCount > 0 && (

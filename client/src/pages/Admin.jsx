@@ -50,6 +50,15 @@ const Admin = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showLabelModal, setShowLabelModal] = useState(false);
+  const [labelOrder, setLabelOrder] = useState(null);
+  const [labelOptions, setLabelOptions] = useState({
+    courier: 'ARAMEX',
+    awb: '',
+    weight: '0.5 KG',
+    dimensions: '10 x 10 x 10',
+    routing: 'NA'
+  });
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [newProduct, setNewProduct] = useState({ 
@@ -599,9 +608,299 @@ const Admin = () => {
     }
   };
 
-  const handleViewOrder = (order) => {
-    setSelectedOrder(order);
-    setShowOrderModal(true);
+  const openLabelModal = (order) => {
+    if (!order) return;
+    const orderId = order._id ? String(order._id) : '101';
+    const totalQty = (order.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+    const calculatedWeight = totalQty > 0 ? `${(totalQty * 0.5).toFixed(1)} KG` : '0.5 KG';
+    setLabelOrder(order);
+    setLabelOptions({
+      courier: 'ARAMEX',
+      awb: `42226${orderId.slice(-6).toUpperCase()}`,
+      weight: calculatedWeight,
+      dimensions: '10 x 10 x 10',
+      routing: 'NA'
+    });
+    setShowLabelModal(true);
+  };
+
+  const generateCode128Svg = (text) => {
+    const str = String(text || "123456").toUpperCase();
+    const code128Patterns = [
+      "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213",
+      "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132",
+      "221231", "213212", "223112", "312131", "311222", "321122", "321221", "312212", "322112", "322211",
+      "212123", "212321", "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313",
+      "231113", "231311", "112133", "112331", "132131", "113123", "113321", "133121", "313121", "211331",
+      "231131", "312113", "312311", "332111", "314111", "221411", "431111", "111224", "111422", "121124",
+      "121421", "141122", "141221", "112214", "112412", "122114", "122411", "142112", "142211", "241211",
+      "221114", "411112", "411211", "211141", "211411", "231112", "321111", "112142", "121142", "121241",
+      "114212", "124112", "124211", "411221", "421121", "421211", "212141", "214121", "412121", "111143",
+      "111341", "131141", "114113", "114311", "411113", "411311", "113141", "114131", "311141", "411131",
+      "211412", "211214", "211232", "2331112"
+    ];
+    const startCodeB = 104;
+    const stopCode = 106;
+    const codes = [startCodeB];
+    let checksum = startCodeB;
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i);
+      const code = charCode - 32;
+      if (code >= 0 && code <= 95) {
+        codes.push(code);
+        checksum += code * (i + 1);
+      }
+    }
+    checksum %= 103;
+    codes.push(checksum);
+    codes.push(stopCode);
+
+    let patternStr = "";
+    for (const c of codes) {
+      patternStr += code128Patterns[c] || "";
+    }
+
+    let rects = "";
+    let x = 10;
+    let isBar = true;
+    for (let i = 0; i < patternStr.length; i++) {
+      const width = parseInt(patternStr[i], 10);
+      if (isBar) {
+        rects += `<rect x="${x}" y="0" width="${width * 1.5}" height="45" fill="#000"/>`;
+      }
+      x += width * 1.5;
+      isBar = !isBar;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${x + 10}" height="45" viewBox="0 0 ${x + 10} 45" style="display:block;margin:4px auto;max-width:100%;">${rects}</svg>`;
+  };
+
+  const handlePrintShippingLabel = (order, customOptions = {}) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('Popup blocked! Please allow popups for this site to print labels.');
+      return;
+    }
+
+    const orderId = order._id ? String(order._id) : '101';
+    const rawOrderNo = order.orderNo || order.invoiceNo || `TestOrder${orderId.slice(-4).toUpperCase()}`;
+    const orderNo = rawOrderNo.replace(/^#/, '');
+
+    const courierName = customOptions.courier || 'ARAMEX';
+    const awbNo = customOptions.awb || `42226${orderId.slice(-6).toUpperCase()}`;
+    const weight = customOptions.weight || '0.5 KG';
+    const dimensions = customOptions.dimensions || '10 x 10 x 10';
+    const routing = customOptions.routing || 'NA';
+
+    const customerName = order.customerName || 'Jack Johnson';
+    const customerAddress = order.customerAddress || 'TTT land, XXX block, Delhi, Delhi, 110030, India';
+    const customerPhone = order.customerPhone || '9876675868';
+
+    const storeName = settings?.companyName || 'Test Account';
+    const storeAddress = settings?.address || 'Plot no. 264, Saket, Delhi, Delhi, 110030, India';
+    const storePhone = settings?.phone || '9878776765';
+
+    const isCod = String(order.paymentMethod || order.paymentType || '').toLowerCase().includes('cod');
+    const paymentText = isCod ? 'CASH ON DELIVERY' : 'PREPAID';
+
+    const items = order.items || [];
+    const grandTotal = order.totalAmount || items.reduce((sum, item) => sum + ((item.rate || item.originalRate || 0) * (item.quantity || 0)), 0);
+
+    const orderBarcodeSvg = generateCode128Svg(orderNo);
+    const awbBarcodeSvg = generateCode128Svg(awbNo);
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shipping Label - ${orderNo}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; padding: 15px; font-size: 11px; }
+    .shipping-label-card {
+      width: 100%;
+      max-width: 580px;
+      margin: 0 auto;
+      border: 2px solid #800000;
+      background: #fff;
+    }
+    .flex-row { display: flex; }
+    .border-b { border-bottom: 1.5px solid #800000; }
+    .border-r { border-right: 1.5px solid #800000; }
+    .col-half { width: 50%; padding: 8px 10px; }
+    .section-title { font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #000; }
+    .address-line { font-size: 10.5px; line-height: 1.35; color: #111; }
+    .bold { font-weight: bold; }
+    .order-header-box { padding: 6px 10px; }
+    .meta-box { padding: 6px 10px; font-size: 10.5px; font-weight: bold; }
+    .meta-item { margin-right: 20px; }
+    .payment-badge-box {
+      width: 50%;
+      padding: 15px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .payment-title { font-size: 20px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #000; }
+    .courier-box { width: 50%; padding: 8px 10px; }
+    .items-table { width: 100%; border-collapse: collapse; margin-top: 0; }
+    .items-table th {
+      background-color: #f7e8e8;
+      border-right: 1.5px solid #800000;
+      border-bottom: 1.5px solid #800000;
+      padding: 5px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: bold;
+      text-align: left;
+      color: #000;
+    }
+    .items-table th:last-child { border-right: none; }
+    .items-table td {
+      border-right: 1.5px solid #800000;
+      border-bottom: 1.5px solid #800000;
+      padding: 5px 8px;
+      font-size: 10.5px;
+      vertical-align: top;
+    }
+    .items-table td:last-child { border-right: none; text-align: right; }
+    .total-cell-row td {
+      border-bottom: 1.5px solid #800000;
+      padding: 6px 10px;
+      font-weight: bold;
+      font-size: 11px;
+      text-align: right;
+    }
+    .notes-blank-area {
+      height: 180px;
+      border-bottom: 1.5px solid #800000;
+      background: #fff;
+    }
+    .terms-box { padding: 8px 10px; font-size: 9px; line-height: 1.4; color: #111; }
+    .terms-heading { font-weight: bold; font-size: 9.5px; margin-bottom: 3px; text-transform: uppercase; }
+    .terms-disclaimer-text { font-size: 8.5px; margin-top: 4px; }
+    .auto-gen-notice {
+      margin-top: 6px;
+      font-weight: bold;
+      font-size: 8.5px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-top: 1px solid #800000;
+      padding-top: 4px;
+    }
+    @media print {
+      body { padding: 0; background: #fff; }
+      @page { size: portrait; margin: 5mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shipping-label-card">
+    <!-- Header: Deliver To & Shipped By -->
+    <div class="flex-row border-b">
+      <div class="col-half border-r">
+        <div class="section-title">DELIVER To:</div>
+        <div class="address-line bold">${customerName}</div>
+        <div class="address-line">${customerAddress}</div>
+        <div class="address-line bold" style="margin-top:4px;">MOBILE NO. : ${customerPhone}</div>
+      </div>
+      <div class="col-half">
+        <div class="section-title">Shipped By (If undelivered, return to) :</div>
+        <div class="address-line bold">${storeName}</div>
+        <div class="address-line">${storeAddress}</div>
+        <div class="address-line bold" style="margin-top:4px;">MOBILE NO. : ${storePhone}</div>
+      </div>
+    </div>
+
+    <!-- Order Barcode Section -->
+    <div class="order-header-box border-b">
+      <div class="bold" style="font-size: 11px;">ORDER # : ${orderNo}</div>
+      <div style="text-align: center; margin-top: 2px;">
+        ${orderBarcodeSvg}
+      </div>
+    </div>
+
+    <!-- Shipment Metadata -->
+    <div class="flex-row border-b meta-box">
+      <div style="width: 60%;">
+        <span class="meta-item">SHIPMENT WEIGHT : ${weight}</span>
+        <span>DIMENSIONS : ${dimensions}</span>
+      </div>
+      <div style="width: 40%; text-align: right;">
+        ROUTING CODE : ${routing}
+      </div>
+    </div>
+
+    <!-- Prepaid & Courier Barcode -->
+    <div class="flex-row border-b">
+      <div class="payment-badge-box border-r">
+        <div class="payment-title">${paymentText}</div>
+      </div>
+      <div class="courier-box">
+        <div class="bold" style="font-size: 10.5px;">COURIER : ${courierName}</div>
+        <div class="bold" style="font-size: 10.5px; margin-top:2px;">AWB # : ${awbNo}</div>
+        <div style="text-align: center; margin-top: 2px;">
+          ${awbBarcodeSvg}
+        </div>
+      </div>
+    </div>
+
+    <!-- SKU Item Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 20%;">SKU</th>
+          <th style="width: 50%;">ITEM</th>
+          <th style="width: 12%; text-align: center;">QTY</th>
+          <th style="width: 18%; text-align: right;">PRICE</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.length > 0 ? items.map((item, idx) => `
+          <tr>
+            <td class="bold">${item.sku || `SKU-${idx + 1}`}</td>
+            <td>
+              <div class="bold">${item.name || 'Product'}</div>
+              ${item.content ? `<div style="font-size:9px; color:#444;">${item.content}</div>` : ''}
+            </td>
+            <td style="text-align: center;" class="bold">${item.quantity || 1}</td>
+            <td class="bold">Rs.${Number((item.rate || item.originalRate || 0) * (item.quantity || 1)).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          </tr>
+        `).join('') : `
+          <tr>
+            <td class="bold">Test</td>
+            <td class="bold">Test</td>
+            <td style="text-align: center;" class="bold">1</td>
+            <td class="bold">Rs.4,000.00</td>
+          </tr>
+        `}
+        <tr class="total-cell-row">
+          <td colSpan="4">TOTAL Rs.${Number(grandTotal).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Blank Notes Area -->
+    <div class="notes-blank-area"></div>
+
+    <!-- Terms and Conditions Footer -->
+    <div class="terms-box">
+      <div class="terms-heading">TERMS AND CONDITIONS:</div>
+      <div style="margin-bottom: 2px;">1. Visit official website of ${courierName} to view the Conditions of Carriage.</div>
+      <div>2. Shipping charges are inclusive of service tax and all figures are in INR.</div>
+      <div class="terms-disclaimer-text">All disputes are subject to local jurisdiction. Goods once sold will only be taken back or exchanged as per the store's exchange/return policy.</div>
+      <div class="auto-gen-notice">THIS IS AN AUTO-GENERATED LABEL AND DOES NOT NEED SIGNATURE.</div>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => { printWindow.print(); }, 300);
   };
 
   const handleDownloadInvoice = async (order) => {
@@ -1342,10 +1641,13 @@ const Admin = () => {
                             </td>
                             <td className="text-center fw-bold text-primary">₹{order.totalAmount}</td>
                             <td className="text-center">
-                              <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm me-2" onClick={() => handleViewOrder(order)}>
+                              <button className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm me-1" onClick={() => handleViewOrder(order)}>
                                 <i className="bi bi-eye me-1"></i>View
                               </button>
-                              <button className="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" onClick={() => handleDeleteOrder(order._id)}>
+                              <button className="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm me-1" onClick={() => openLabelModal(order)} title="Print Shipping Label">
+                                <i className="bi bi-tag-fill me-1"></i>Label
+                              </button>
+                              <button className="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm" onClick={() => handleDeleteOrder(order._id)}>
                                 <i className="bi bi-trash me-1"></i>Delete
                               </button>
                             </td>
@@ -1926,12 +2228,117 @@ const Admin = () => {
                   </table>
                 </div>
               </div>
-              <div className="modal-footer border-0 p-4 pt-2">
+              <div className="modal-footer border-0 p-4 pt-2 gap-2">
                 <button className="btn btn-outline-secondary rounded-pill px-4" onClick={() => setShowOrderModal(false)}>
                   Close
                 </button>
+                <button className="btn btn-outline-danger rounded-pill px-4 fw-bold shadow-sm" onClick={() => { setShowOrderModal(false); openLabelModal(selectedOrder); }}>
+                  <i className="bi bi-tag-fill me-2"></i>Print Shipping Label
+                </button>
                 <button className="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onClick={() => handleDownloadInvoice(selectedOrder)}>
                   <i className="bi bi-download me-2"></i>Download Invoice PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Label Customization Modal */}
+      {showLabelModal && labelOrder && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content border-0 rounded-5 shadow-lg overflow-hidden">
+              <div className="modal-header border-0 p-4 pb-0">
+                <div>
+                  <h5 className="modal-title fw-bold">
+                    <i className="bi bi-tag-fill text-danger me-2"></i>Print Shipping Label
+                  </h5>
+                  <p className="text-muted small mb-0">Customize label parameters before generating printable dispatch tag</p>
+                </div>
+                <button type="button" className="btn-close" onClick={() => setShowLabelModal(false)}></button>
+              </div>
+              <div className="modal-body p-4">
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-uppercase">Courier Partner</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={labelOptions.courier} 
+                      onChange={(e) => setLabelOptions({...labelOptions, courier: e.target.value})} 
+                      placeholder="e.g. ARAMEX / ST COURIER" 
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label small fw-bold text-uppercase">AWB / Tracking Number</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={labelOptions.awb} 
+                      onChange={(e) => setLabelOptions({...labelOptions, awb: e.target.value})} 
+                      placeholder="e.g. 42226191840" 
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label small fw-bold text-uppercase">Shipment Weight</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={labelOptions.weight} 
+                      onChange={(e) => setLabelOptions({...labelOptions, weight: e.target.value})} 
+                      placeholder="e.g. 0.5 KG" 
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label small fw-bold text-uppercase">Dimensions</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={labelOptions.dimensions} 
+                      onChange={(e) => setLabelOptions({...labelOptions, dimensions: e.target.value})} 
+                      placeholder="e.g. 10 x 10 x 10" 
+                    />
+                  </div>
+                  <div className="col-md-4">
+                    <label className="form-label small fw-bold text-uppercase">Routing Code</label>
+                    <input 
+                      type="text" 
+                      className="form-control rounded-3" 
+                      value={labelOptions.routing} 
+                      onChange={(e) => setLabelOptions({...labelOptions, routing: e.target.value})} 
+                      placeholder="e.g. NA" 
+                    />
+                  </div>
+                </div>
+
+                <div className="alert alert-light border rounded-4 mt-4 p-3 mb-0">
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="bg-soft-danger text-danger p-2 rounded-3">
+                      <i className="bi bi-box-seam fs-4"></i>
+                    </div>
+                    <div>
+                      <span className="fw-bold d-block small">Shipment Overview</span>
+                      <span className="text-muted small">
+                        Deliver To: <strong>{labelOrder.customerName || 'Customer'}</strong> ({labelOrder.customerPhone || 'No Phone'})<br/>
+                        Total Items: <strong>{(labelOrder.items || []).length} items</strong> | Total Amount: <strong>₹{labelOrder.totalAmount}</strong>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer border-0 p-4 pt-2">
+                <button className="btn btn-outline-secondary rounded-pill px-4" onClick={() => setShowLabelModal(false)}>
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-danger rounded-pill px-4 fw-bold shadow-sm" 
+                  onClick={() => {
+                    handlePrintShippingLabel(labelOrder, labelOptions);
+                    setShowLabelModal(false);
+                  }}
+                >
+                  <i className="bi bi-printer me-2"></i>Print Shipping Label
                 </button>
               </div>
             </div>
