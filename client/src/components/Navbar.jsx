@@ -27,20 +27,20 @@ const Navbar = () => {
       <header className="navbar navbar-expand-lg navbar-light sticky-top shadow-sm bg-white py-2" id="mainHeader">
         <div className="container px-2 px-md-3">
           {/* Logo and Shop Info */}
-          <Link className="navbar-brand d-flex align-items-center me-auto" to="/" style={{ maxWidth: '75%' }}>
-            <img src={logo} alt="Kaviya Crackers Logo" height="40" className="me-2 rounded-2 d-md-none" />
-            <img src={logo} alt="Kaviya Crackers Logo" height="70" className="me-3 rounded-2 d-none d-md-block" />
-            <div className="d-flex flex-column justify-content-center lh-1 overflow-hidden">
-              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#7209B7', fontSize: '0.85rem' }}>
+          <Link className="navbar-brand d-flex align-items-center me-auto" to="/" style={{ maxWidth: '65%', minWidth: 0 }}>
+            <img src={logo} alt="Kaviya Crackers Logo" height="36" className="me-2 rounded-2 d-md-none" />
+            <img src={logo} alt="Kaviya Crackers Logo" height="64" className="me-3 rounded-2 d-none d-md-block" />
+            <div className="d-flex flex-column justify-content-center lh-1 overflow-hidden text-truncate">
+              <h5 className="fw-bold mb-0 d-md-none" style={{ color: '#7209B7', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h5>
               <h4 className="fw-bold mb-0 d-none d-md-block" style={{ color: '#7209B7', letterSpacing: '-0.5px' }}>
                 Kaviya <span style={{ color: '#666' }}>Crackers</span>
               </h4>
-              <div className="fw-bold text-dark mt-1 d-md-none" style={{ fontSize: '0.6rem' }}>
+              <div className="fw-bold text-dark mt-1 d-md-none" style={{ fontSize: '0.55rem', whiteSpace: 'nowrap' }}>
                 Vasanth - {settings?.phone || '+91 93427 58753'}
               </div>
-              <div className="fw-bold text-dark mt-1 d-none d-md-block" style={{ fontSize: '1.1rem' }}>
+              <div className="fw-bold text-dark mt-1 d-none d-md-block" style={{ fontSize: '1rem' }}>
                 Vasanth - <span style={{ letterSpacing: '0.5px' }}>{settings?.phone || '+91 93427 58753'}</span>
               </div>
             </div>
@@ -48,7 +48,7 @@ const Navbar = () => {
 
 
           {/* Mobile Actions: Cart + Hamburger */}
-          <div className="d-flex align-items-center gap-1 gap-md-2 order-lg-last">
+          <div className="d-flex align-items-center gap-1 gap-md-2 order-lg-last flex-shrink-0">
             <a 
               href="/price-list-2026.pdf" 
               target="_blank" 
@@ -77,13 +77,15 @@ const Navbar = () => {
               href="/price-list-2026.pdf" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="btn d-inline-flex d-md-none align-items-center gap-1 px-2 py-1 fw-bold rounded-pill shadow-sm transition-all"
+              className="btn d-inline-flex d-md-none align-items-center justify-content-center px-2 py-1 fw-bold rounded-pill shadow-sm transition-all"
               style={{ 
                 background: 'linear-gradient(45deg, #7209B7, #3A0CA3)', 
                 color: '#fff',
-                fontSize: '0.7rem',
+                fontSize: '0.65rem',
                 letterSpacing: '0.3px',
-                boxShadow: '0 2px 8px rgba(114, 9, 183, 0.3)'
+                boxShadow: '0 2px 8px rgba(114, 9, 183, 0.3)',
+                minWidth: '36px',
+                height: '32px'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-1px)';
@@ -93,9 +95,10 @@ const Navbar = () => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(114, 9, 183, 0.3)';
               }}
+              title="Price List 2026"
             >
               <i className="bi bi-file-earmark-text fs-6"></i>
-              <span>Price List 2026</span>
+              <span className="d-none d-sm-inline ms-1">Price List 2026</span>
             </a>
             <button className="nav-link position-relative p-2 border-0 bg-transparent" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
               <i className="bi bi-cart3 fs-4" style={{ color: '#7209B7' }}></i>
