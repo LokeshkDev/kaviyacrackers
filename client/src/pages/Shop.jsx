@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApi, api } from '../hooks/useApi';
 import logo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { useCart } from '../context/CartContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Shop = () => {
   const { fetchData } = useApi();
@@ -221,7 +222,7 @@ const Shop = () => {
                       <tr key={p.id}>
                         <td className="text-center d-none d-md-table-cell">
                           <img
-                            src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo}
+                            src={getImageUrl(p.image, logo)}
                             alt={p.name}
                             width="60"
                             height="60"
@@ -234,7 +235,7 @@ const Shop = () => {
                         <td className="px-1 px-md-3" style={{ minWidth: '120px' }}>
                           <div className="d-flex align-items-start">
                             <img
-                              src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : logo}
+                              src={getImageUrl(p.image, logo)}
                               alt={p.name}
                               width="40"
                               height="40"
@@ -408,7 +409,7 @@ const Shop = () => {
                   )}
 
                   <img
-                    src={imagePopupProduct.image ? (imagePopupProduct.image.startsWith('http') ? imagePopupProduct.image : `/${imagePopupProduct.image}`) : logo}
+                    src={getImageUrl(imagePopupProduct.image, logo)}
                     alt={imagePopupProduct.name}
                     className="img-fluid rounded-4 shadow-lg"
                     style={{ maxHeight: '70vh', objectFit: 'contain' }}

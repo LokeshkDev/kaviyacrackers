@@ -32,6 +32,11 @@ export default defineConfig(({ mode }) => {
           target: apiUrl,
           changeOrigin: true,
           secure: false,
+        },
+        '/assets': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false,
         }
       },
       // SEO friendly headers for development
@@ -45,6 +50,11 @@ export default defineConfig(({ mode }) => {
     preview: {
       proxy: {
         '/api': {
+          target: apiUrl,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/assets': {
           target: apiUrl,
           changeOrigin: true,
           secure: false,

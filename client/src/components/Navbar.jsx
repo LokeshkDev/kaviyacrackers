@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { useCart } from '../context/CartContext';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Navbar = () => {
   const { cart, cartCount, updateCart, products, settings } = useCart();
@@ -163,7 +164,7 @@ const Navbar = () => {
                 {cartItems.map(item => (
                   <div key={item.id} className="d-flex align-items-center mb-3 pb-3 border-bottom">
                     <img 
-                      src={item.image ? (item.image.startsWith('http') ? item.image : `/${item.image}`) : logo} 
+                      src={getImageUrl(item.image, logo)} 
                       alt={item.name} 
                       width="60" 
                       height="60" 

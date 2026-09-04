@@ -5,6 +5,7 @@ import logoBackground from '../img/logo-background.png';
 import enquiryLogo from '../assets/img/kaviya-crackers-logo.jpeg';
 import { Link } from 'react-router-dom';
 import BillingSection from '../components/BillingSection';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Admin = () => {
   const { fetchData, login, updateOrderStatus } = useApi();
@@ -579,28 +580,36 @@ const Admin = () => {
     setShowCategoryModal(true);
   };
 
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const handleImageUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    setIsUploadingImage(true);
     const formData = new FormData();
     formData.append('image', file);
 
     try {
-      const endpoint = type === 'product' ? '/api/upload-product' : '/api/upload-category';
-      const res = await api.post(endpoint.replace('/api', ''), formData, {
+      const endpoint = type === 'product' ? '/upload-product' : '/upload-category';
+      const res = await api.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (res.data.success) {
+      if (res.data && res.data.success) {
         if (type === 'product') {
-          setNewProduct({ ...newProduct, image: res.data.path });
+          setNewProduct(prev => ({ ...prev, image: res.data.path }));
         } else {
-          setNewCategory({ ...newCategory, image: res.data.path });
+          setNewCategory(prev => ({ ...prev, image: res.data.path }));
         }
+      } else {
+        alert(res.data?.message || "Image upload failed");
       }
     } catch (err) {
-      alert("Image upload failed");
+      console.error("Image upload error:", err);
+      alert(err.response?.data?.message || err.message || "Image upload failed");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -1209,7 +1218,7 @@ const Admin = () => {
                               <tr key={p._id} className={p.active === false ? 'opacity-75 bg-light' : ''}>
                                 <td className="ps-4 text-muted small">{idx + 1}</td>
                                 <td>
-                                  <img src={p.image ? (p.image.startsWith('http') ? p.image : `/${p.image}`) : enquiryLogo} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
+                                  <img src={getImageUrl(p.image, enquiryLogo)} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
                                 </td>
                                 <td>
                                   <div className="fw-bold text-dark">{p.name}</div>
@@ -1448,7 +1457,7 @@ const Admin = () => {
                           <i className="bi bi-arrow-down" style={{fontSize:'0.75rem'}}></i>
                         </button>
                       </div>
-                      <img src={cat.image ? (cat.image.startsWith('http') ? cat.image : `/${cat.image}`) : logo} className="card-img-top" alt={cat.name} style={{ height: '150px', objectFit: 'cover' }} />
+                      <img src={getImageUrl(cat.image, logo)} className="card-img-top" alt={cat.name} style={{ height: '150px', objectFit: 'cover' }} />
                       <div className="card-body p-4 text-center">
                         <h5 className="fw-bold mb-3">{cat.name}</h5>
                         <div className="d-flex justify-content-center gap-2">
@@ -1768,9 +1777,14 @@ const Admin = () => {
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Product Image</label>
                       <div className="d-flex gap-3 align-items-center">
                         <input type="file" className="form-control rounded-4 bg-white-tertiary border-0 py-2" 
-                               accept="image/*" onChange={e => handleImageUpload(e, 'product')} />
+                               accept="image/*" disabled={isUploadingImage} onChange={e => handleImageUpload(e, 'product')} />
+                        {isUploadingImage && (
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span className="visually-hidden">Uploading...</span>
+                          </div>
+                        )}
                         {newProduct.image && (
-                          <img src={newProduct.image.startsWith('http') ? newProduct.image : `/${newProduct.image}`} 
+                          <img src={getImageUrl(newProduct.image, logo)} 
                                width="40" height="40" className="rounded shadow-sm object-fit-cover" />
                         )}
                       </div>
@@ -1796,7 +1810,7 @@ const Admin = () => {
                       </div>
                     </div>
                   </div>
-                  <button className="btn btn-primary w-100 py-3 rounded-pill fw-bold mt-4 shadow-lg hover-scale" type="submit">
+                  <button className="btn btn-primary w-100 py-3 rounded-pill fw-bold mt-4 shadow-lg hover-scale" type="submit" disabled={isUploadingImage}>
                     {editingProduct ? 'Update Changes' : 'Add to Catalog'}
                   </button>
                 </form>
@@ -1825,9 +1839,14 @@ const Admin = () => {
                     <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Category Image</label>
                     <div className="d-flex gap-3 align-items-center mb-2">
                       <input type="file" className="form-control rounded-4 bg-white-tertiary border-0 py-2" 
-                             accept="image/*" onChange={e => handleImageUpload(e, 'category')} />
+                             accept="image/*" disabled={isUploadingImage} onChange={e => handleImageUpload(e, 'category')} />
+                      {isUploadingImage && (
+                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                          <span className="visually-hidden">Uploading...</span>
+                        </div>
+                      )}
                       {newCategory.image && (
-                        <img src={newCategory.image.startsWith('http') ? newCategory.image : `/${newCategory.image}`} 
+                        <img src={getImageUrl(newCategory.image, logo)} 
                              width="40" height="40" className="rounded shadow-sm object-fit-cover" />
                       )}
                     </div>
@@ -1835,7 +1854,7 @@ const Admin = () => {
                            style={{fontSize:'0.7rem'}} placeholder="Or paste image URL/path"
                            value={newCategory.image} onChange={e => setNewCategory({...newCategory, image: e.target.value})} />
                   </div>
-                  <button className="btn btn-primary w-100 py-3 rounded-pill fw-bold mt-4 shadow-lg hover-scale" type="submit">
+                  <button className="btn btn-primary w-100 py-3 rounded-pill fw-bold mt-4 shadow-lg hover-scale" type="submit" disabled={isUploadingImage}>
                     {editingCategory ? 'Update Category' : 'Create Category'}
                   </button>
                 </form>

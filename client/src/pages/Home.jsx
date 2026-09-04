@@ -14,6 +14,7 @@ import 'aos/dist/aos.css';
 import heroImg from '../assets/img/hero.png';
 import logo from '../assets/img/kaviya_crackers_logo.jpeg';
 import offersBg from '../assets/img/offers-bg.png';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Home = () => {
   const { fetchData } = useApi();
@@ -183,7 +184,7 @@ const Home = () => {
                     <div className="category-card category-card-fill rounded-5 shadow-sm h-100 border-0 bg-white hover-scale">
                       <div className="category-card-fill__media">
                         <img
-                          src={cat.image ? (cat.image.startsWith('http') ? cat.image : `/${cat.image}`) : logo}
+                          src={getImageUrl(cat.image, logo)}
                           alt={cat.name}
                           onError={(e) => { e.target.src = logo; }}
                         />
