@@ -82,10 +82,69 @@ const Admin = () => {
     });
   }, [groupedProducts, categories]);
 
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [collapsedCategories, setCollapsedCategories] = useState(new Set());
+
+  const toggleCategoryCollapse = (catName) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(catName)) {
+        next.delete(catName);
+      } else {
+        next.add(catName);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleCollapseAll = () => {
+    if (collapsedCategories.size === categories.length) {
+      setCollapsedCategories(new Set());
+    } else {
+      setCollapsedCategories(new Set(categories.map(c => typeof c === 'string' ? c : c.name)));
+    }
+  };
+
+  const openAddProductForCategory = (categoryName) => {
+    setEditingProduct(null);
+    setNewProduct({
+      name: '',
+      category: categoryName || (categories[0]?.name || ''),
+      content: '',
+      rate: '',
+      originalRate: '',
+      image: '',
+      active: true
+    });
+    setShowProductModal(true);
+  };
+
+  const uncategorizedProducts = useMemo(() => {
+    const categoryNameSet = new Set(categories.map(c => typeof c === 'string' ? c : c.name));
+    return products.filter(p => !categoryNameSet.has(p.category));
+  }, [products, categories]);
+
+  const filteredCategories = useMemo(() => {
+    const q = catalogSearch.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter(cat => {
+      const catName = typeof cat === 'string' ? cat : cat.name;
+      if (catName.toLowerCase().includes(q)) return true;
+      const catProds = groupedProducts[catName] || [];
+      return catProds.some(p => 
+        p.name.toLowerCase().includes(q) || 
+        (p.content && p.content.toLowerCase().includes(q))
+      );
+    });
+  }, [categories, catalogSearch, groupedProducts]);
+
   // Move product up or down within its category group
   const handleMoveProduct = async (product, direction) => {
+    const prodMatchId = (p) => (p._id ? String(p._id) : String(p.id));
+    const targetId = prodMatchId(product);
+
     const catProducts = [...(groupedProducts[product.category] || [])];
-    const idx = catProducts.findIndex(p => String(p._id) === String(product._id));
+    const idx = catProducts.findIndex(p => prodMatchId(p) === targetId);
     if (idx < 0) return;
     const swapIdx = idx + direction;
     if (swapIdx < 0 || swapIdx >= catProducts.length) return;
@@ -107,11 +166,14 @@ const Admin = () => {
       }
     });
 
+    setProducts(newProducts);
+
     try {
       await api.post('/data', { products: newProducts });
       loadData();
     } catch (err) {
       alert('Failed to reorder product');
+      loadData();
     }
   };
 
@@ -122,12 +184,42 @@ const Admin = () => {
 
     const newCategories = [...categories];
     [newCategories[index], newCategories[swapIdx]] = [newCategories[swapIdx], newCategories[index]];
+    setCategories(newCategories);
+
+    // Keep products array grouped in the new category order
+    const categoryOrderMap = new Map();
+    newCategories.forEach((c, idx) => {
+      const name = typeof c === 'string' ? c : c.name;
+      categoryOrderMap.set(name, idx);
+    });
+
+    const catGroups = {};
+    const uncategorized = [];
+    products.forEach(p => {
+      if (categoryOrderMap.has(p.category)) {
+        if (!catGroups[p.category]) catGroups[p.category] = [];
+        catGroups[p.category].push(p);
+      } else {
+        uncategorized.push(p);
+      }
+    });
+
+    const newProducts = [];
+    newCategories.forEach(c => {
+      const name = typeof c === 'string' ? c : c.name;
+      if (catGroups[name]) {
+        newProducts.push(...catGroups[name]);
+      }
+    });
+    newProducts.push(...uncategorized);
+    setProducts(newProducts);
 
     try {
-      await api.post('/data', { categories: newCategories });
+      await api.post('/data', { categories: newCategories, products: newProducts });
       loadData();
     } catch (err) {
       alert('Failed to reorder category');
+      loadData();
     }
   };
 
@@ -465,7 +557,8 @@ const Admin = () => {
   const handleDeleteProduct = async (id) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
-        const nextProducts = products.filter((p) => String(p._id) !== String(id));
+        const nextProducts = products.filter((p) => String(p._id) !== String(id) && String(p.id) !== String(id));
+        setProducts(nextProducts);
         await api.post('/data', { products: nextProducts });
         loadData();
       } catch (err) {
@@ -475,9 +568,11 @@ const Admin = () => {
   };
 
   const handleToggleProductActive = async (product) => {
+    const prodMatchId = (p) => (p._id ? String(p._id) : String(p.id));
+    const targetId = prodMatchId(product);
     const updatedActive = !(product.active !== false);
     const updatedProducts = products.map((p) =>
-      String(p._id) === String(product._id) ? { ...p, active: updatedActive } : p
+      prodMatchId(p) === targetId ? { ...p, active: updatedActive } : p
     );
     setProducts(updatedProducts);
     try {
@@ -487,6 +582,49 @@ const Admin = () => {
       alert("Failed to update product status");
       loadData();
     }
+  };
+
+  // Helper: insert a product at the end of its category group in the products array
+  const insertProductAtEndOfCategory = (currentProducts, newProd, categoriesList) => {
+    // 1. Find the last index of any existing product in this category
+    let lastCatIndex = -1;
+    for (let i = 0; i < currentProducts.length; i++) {
+      if (currentProducts[i].category === newProd.category) {
+        lastCatIndex = i;
+      }
+    }
+
+    if (lastCatIndex !== -1) {
+      // Insert right after the last product in this category
+      const copy = [...currentProducts];
+      copy.splice(lastCatIndex + 1, 0, newProd);
+      return copy;
+    }
+
+    // 2. If no product exists in this category yet, place it according to categories sequence
+    const catName = newProd.category;
+    const catIndex = categoriesList.findIndex(c => (typeof c === 'string' ? c : c.name) === catName);
+
+    if (catIndex > 0) {
+      // Look backward for previous category in categories list that has products
+      for (let c = catIndex - 1; c >= 0; c--) {
+        const prevCatName = typeof categoriesList[c] === 'string' ? categoriesList[c] : categoriesList[c].name;
+        let lastPrevIndex = -1;
+        for (let i = 0; i < currentProducts.length; i++) {
+          if (currentProducts[i].category === prevCatName) {
+            lastPrevIndex = i;
+          }
+        }
+        if (lastPrevIndex !== -1) {
+          const copy = [...currentProducts];
+          copy.splice(lastPrevIndex + 1, 0, newProd);
+          return copy;
+        }
+      }
+    }
+
+    // 3. Fallback: append at the end
+    return [...currentProducts, newProd];
   };
 
   const handleSaveProduct = async (e) => {
@@ -503,21 +641,42 @@ const Admin = () => {
         image: newProduct.image || '',
         active: newProduct.active !== false,
       };
+
       let nextProducts;
       if (editingProduct) {
-        nextProducts = products.map((p) =>
-          String(p._id) === String(editingProduct._id) ? { ...p, ...payload, id: p.id } : p
-        );
+        const prodMatchId = (p) => (p._id ? String(p._id) : String(p.id));
+        const editTargetId = editingProduct._id ? String(editingProduct._id) : String(editingProduct.id);
+
+        if (editingProduct.category !== newProduct.category) {
+          // Category changed: remove from old position, insert at the end of the new category
+          const remaining = products.filter((p) => prodMatchId(p) !== editTargetId);
+          const updatedProd = { ...editingProduct, ...payload };
+          nextProducts = insertProductAtEndOfCategory(remaining, updatedProd, categories);
+        } else {
+          // Same category: update in place to preserve current custom order
+          nextProducts = products.map((p) =>
+            prodMatchId(p) === editTargetId ? { ...p, ...payload, id: p.id } : p
+          );
+        }
       } else {
+        // Adding NEW product: always append to the LAST position of its category
         const maxId = products.length ? Math.max(...products.map((p) => p.id || 0), 0) : 0;
-        nextProducts = [...products, { id: maxId + 1, ...payload }];
+        const newProdItem = {
+          id: maxId + 1,
+          _id: 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          ...payload
+        };
+        nextProducts = insertProductAtEndOfCategory(products, newProdItem, categories);
       }
+
+      setProducts(nextProducts);
       await api.post('/data', { products: nextProducts });
       setShowProductModal(false);
       setEditingProduct(null);
       setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true });
       loadData();
     } catch (err) {
+      console.error("Failed to save product:", err);
       alert("Failed to save product");
     }
   };
@@ -540,24 +699,48 @@ const Admin = () => {
     e.preventDefault();
     try {
       let nextCategories;
+      let nextProducts = products;
       if (editingCategory) {
+        const catMatchId = (c) => (c._id ? String(c._id) : c.name);
+        const targetId = editingCategory._id ? String(editingCategory._id) : editingCategory.name;
+        const oldName = typeof editingCategory === 'string' ? editingCategory : editingCategory.name;
+        const newName = newCategory.name.trim();
+
         nextCategories = categories.map((c) =>
-          String(c._id) === String(editingCategory._id)
-            ? { ...c, name: newCategory.name, image: newCategory.image || '' }
+          catMatchId(c) === targetId
+            ? { ...c, name: newName, image: newCategory.image || '' }
             : c
         );
+
+        // If category was renamed, update all associated products so they keep their category
+        if (oldName !== newName) {
+          nextProducts = products.map(p => p.category === oldName ? { ...p, category: newName } : p);
+          setProducts(nextProducts);
+        }
       } else {
-        nextCategories = [
-          ...categories,
-          { name: newCategory.name, image: newCategory.image || '', link: 'shop.html' },
-        ];
+        // ALWAYS append new category to the LAST position of categories
+        const newCatItem = {
+          name: newCategory.name.trim(),
+          image: newCategory.image || '',
+          link: 'shop.html',
+        };
+        nextCategories = [...categories, newCatItem];
       }
-      await api.post('/data', { categories: nextCategories });
+
+      setCategories(nextCategories);
+
+      if (editingCategory && (editingCategory.name !== newCategory.name.trim())) {
+        await api.post('/data', { categories: nextCategories, products: nextProducts });
+      } else {
+        await api.post('/data', { categories: nextCategories });
+      }
+
       setShowCategoryModal(false);
       setEditingCategory(null);
       setNewCategory({ name: '', image: '' });
       loadData();
     } catch (err) {
+      console.error("Failed to save category:", err);
       alert("Failed to save category");
     }
   };
@@ -565,7 +748,8 @@ const Admin = () => {
   const handleDeleteCategory = async (id) => {
     if (window.confirm("Are you sure you want to delete this category? This might affect products in this category.")) {
       try {
-        const nextCategories = categories.filter((c) => String(c._id) !== String(id));
+        const nextCategories = categories.filter((c) => String(c._id) !== String(id) && c.name !== id);
+        setCategories(nextCategories);
         await api.post('/data', { categories: nextCategories });
         loadData();
       } catch (err) {
@@ -960,20 +1144,23 @@ const Admin = () => {
           <nav className="nav flex-column gap-2">
             {[
               { id: 'dashboard', icon: 'speedometer2', label: 'Dashboard' },
-              { id: 'products', icon: 'box-seam', label: 'Products' },
-              { id: 'categories', icon: 'grid', label: 'Categories' },
+              { id: 'catalog', icon: 'grid-3x3-gap-fill', label: 'Categories & Products' },
               { id: 'orders', icon: 'cart-check', label: 'Enquiries' },
               { id: 'billing', icon: 'receipt', label: 'Billing / Invoice' },
               { id: 'admins', icon: 'shield-lock', label: 'Admins' },
               { id: 'settings', icon: 'gear', label: 'Store Settings' },
-            ].map(item => (
-              <button key={item.id} 
-                      className={`nav-link border-0 text-start rounded-4 py-3 px-4 d-flex align-items-center gap-3 transition-all ${activeSection === item.id ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-muted hover-light'}`}
-                      onClick={() => setActiveSection(item.id)}>
-                <i className={`bi bi-${item.icon} fs-5`}></i>
-                <span className="fw-semibold">{item.label}</span>
-              </button>
-            ))}
+            ].map(item => {
+              const isItemActive = activeSection === item.id || 
+                (item.id === 'catalog' && (activeSection === 'products' || activeSection === 'categories' || activeSection === 'catalog'));
+              return (
+                <button key={item.id} 
+                        className={`nav-link border-0 text-start rounded-4 py-3 px-4 d-flex align-items-center gap-3 transition-all ${isItemActive ? 'bg-primary text-white shadow-sm' : 'bg-transparent text-muted hover-light'}`}
+                        onClick={() => setActiveSection(item.id)}>
+                  <i className={`bi bi-${item.icon} fs-5`}></i>
+                  <span className="fw-semibold">{item.label}</span>
+                </button>
+              );
+            })}
             <Link className="nav-link border-0 text-start rounded-4 py-3 px-4 d-flex align-items-center gap-3 text-muted bg-transparent mt-2 text-decoration-none hover-light" to="/shop">
               <i className="bi bi-eye fs-5"></i>
               <span className="fw-semibold">View Store</span>
@@ -1140,14 +1327,14 @@ const Admin = () => {
                     <h4 className="fw-bold mb-4">Quick Actions</h4>
                     <div className="d-flex flex-column gap-3">
                       <button className="btn btn-outline-primary rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
-                              onClick={() => { setActiveSection('products'); setTimeout(() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:'', active: true}); setShowProductModal(true); }, 100); }}>
+                              onClick={() => { setActiveSection('catalog'); setTimeout(() => { openAddProductForCategory(''); }, 100); }}>
                         <span className="d-flex align-items-center gap-3">
                           <i className="bi bi-box-seam fs-4"></i> Add New Product
                         </span>
                         <i className="bi bi-chevron-right"></i>
                       </button>
                       <button className="btn btn-outline-warning rounded-4 py-3 text-start fw-bold d-flex align-items-center justify-content-between hover-scale shadow-sm"
-                              onClick={() => { setActiveSection('categories'); setTimeout(() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }, 100); }}>
+                              onClick={() => { setActiveSection('catalog'); setTimeout(() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }, 100); }}>
                         <span className="d-flex align-items-center gap-3 text-dark">
                           <i className="bi bi-grid fs-4 text-warning"></i> Create Category
                         </span>
@@ -1172,114 +1359,361 @@ const Admin = () => {
               </div>
             </div>
           )}
-          {activeSection === 'products' && (
+          {(activeSection === 'catalog' || activeSection === 'products' || activeSection === 'categories') && (
             <div className="admin-section animate-fade-in">
-              <div className="d-flex justify-content-between align-items-center mb-5">
+              {/* Header with Title and Action Buttons */}
+              <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
-                  <h2 className="fw-bold m-0">Product Catalog</h2>
-                  <p className="text-muted mb-0">Manage your price list and product visibility</p>
+                  <h2 className="fw-bold m-0 d-flex align-items-center gap-2">
+                    <i className="bi bi-grid-3x3-gap-fill text-primary"></i> Categories &amp; Products
+                  </h2>
+                  <p className="text-muted mb-0">
+                    Manage categories and their respective products with re-ordering for your live store
+                  </p>
                 </div>
-                <button className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg hover-scale" 
-                        onClick={() => { setEditingProduct(null); setNewProduct({name:'', category:'', content:'', rate:'', originalRate:'', image:'', active: true}); setShowProductModal(true); }}>
-                  <i className="bi bi-plus-lg me-2"></i> Add New Product
-                </button>
+                <div className="d-flex flex-wrap align-items-center gap-2">
+                  <button 
+                    className="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold shadow-sm"
+                    onClick={handleToggleCollapseAll}
+                    title={collapsedCategories.size === categories.length ? "Expand All Categories" : "Collapse All Categories"}
+                  >
+                    <i className={`bi ${collapsedCategories.size === categories.length ? 'bi-arrows-expand' : 'bi-arrows-collapse'} me-1`}></i>
+                    {collapsedCategories.size === categories.length ? 'Expand All' : 'Collapse All'}
+                  </button>
+                  <button 
+                    className="btn btn-outline-primary rounded-pill px-4 py-2 fw-bold shadow-sm hover-scale"
+                    onClick={() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }}
+                  >
+                    <i className="bi bi-folder-plus me-1"></i> Add Category
+                  </button>
+                  <button 
+                    className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg hover-scale" 
+                    onClick={() => openAddProductForCategory('')}
+                  >
+                    <i className="bi bi-plus-lg me-1"></i> Add Product
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-white rounded-5 shadow-sm overflow-hidden border-0">
-                <div className="table-responsive border-0">
-                  <table className="table table-hover align-middle mb-0 text-nowrap">
-                    <thead className="bg-white-tertiary border-bottom">
-                    <tr>
-                      <th className="ps-4 py-3" style={{width:'50px'}}>#</th>
-                      <th className="py-3" style={{width:'60px'}}>Img</th>
-                      <th className="py-3">Product Name</th>
-                      <th className="py-3 text-center">Price</th>
-                      <th className="py-3 text-center" style={{width:'110px'}}>Status</th>
-                      <th className="py-3 text-center" style={{width:'100px'}}>Reorder</th>
-                      <th className="text-end pe-4 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orderedCategoryNames.length === 0 ? (
-                      <tr><td colSpan="7" className="text-center py-5 text-muted">No products found.</td></tr>
-                    ) : (
-                      orderedCategoryNames.map(catName => {
-                        const catProducts = groupedProducts[catName];
-                        return (
-                          <React.Fragment key={catName}>
-                            <tr style={{backgroundColor: 'rgba(114, 9, 183, 0.06)'}}>
-                              <td colSpan="7" className="py-3 ps-4 fw-bold border-bottom" style={{fontSize: '1rem', color: '#7209B7', letterSpacing: '0.3px'}}>
-                                <i className="bi bi-folder2-open me-2"></i>
-                                {catName}
-                                <span className="badge bg-soft-primary text-primary rounded-pill ms-2 fw-normal" style={{fontSize: '0.7rem'}}>{catProducts.length} items</span>
+              {/* Search & Stats Bar */}
+              <div className="bg-white p-3 rounded-4 shadow-sm mb-4 border d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: '450px' }}>
+                  <div className="input-group">
+                    <span className="input-group-text bg-white border-end-0 rounded-start-pill ps-3">
+                      <i className="bi bi-search text-muted"></i>
+                    </span>
+                    <input 
+                      type="text" 
+                      className="form-control border-start-0 rounded-end-pill py-2 shadow-none" 
+                      placeholder="Search categories or products..." 
+                      value={catalogSearch}
+                      onChange={e => setCatalogSearch(e.target.value)}
+                    />
+                    {catalogSearch && (
+                      <button 
+                        className="btn btn-link text-muted position-absolute end-0 top-50 translate-middle-y z-3 pe-3 text-decoration-none"
+                        onClick={() => setCatalogSearch('')}
+                      >
+                        <i className="bi bi-x-circle-fill"></i>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="d-flex align-items-center gap-3 text-muted small fw-semibold">
+                  <span>
+                    <strong className="text-primary">{categories.length}</strong> Categories
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-primary">{products.length}</strong> Total Products
+                  </span>
+                </div>
+              </div>
+
+              {/* Categories & Respective Products List */}
+              {categories.length === 0 ? (
+                <div className="bg-white p-5 rounded-5 shadow-sm text-center border">
+                  <i className="bi bi-grid fs-1 text-muted d-block mb-3 opacity-50"></i>
+                  <h4 className="fw-bold text-dark">No Categories Found</h4>
+                  <p className="text-muted">Start by creating your first category to organize your products.</p>
+                  <button 
+                    className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-sm"
+                    onClick={() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }}
+                  >
+                    <i className="bi bi-plus-lg me-1"></i> Add Category
+                  </button>
+                </div>
+              ) : (
+                filteredCategories.map((cat) => {
+                  const originalCatIndex = categories.findIndex(c => String(c._id) === String(cat._id) || c.name === cat.name);
+                  const catIdx = originalCatIndex !== -1 ? originalCatIndex : 0;
+                  const catName = typeof cat === 'string' ? cat : cat.name;
+                  const allCatProducts = groupedProducts[catName] || [];
+                  const q = catalogSearch.trim().toLowerCase();
+                  const catProducts = q
+                    ? allCatProducts.filter(p => 
+                        p.name.toLowerCase().includes(q) || 
+                        (p.content && p.content.toLowerCase().includes(q)) ||
+                        catName.toLowerCase().includes(q)
+                      )
+                    : allCatProducts;
+                  const isCollapsed = collapsedCategories.has(catName) && !q;
+
+                  return (
+                    <div key={cat._id || catName} className="card border-0 rounded-4 shadow-sm mb-4 overflow-hidden">
+                      {/* Category Header Bar */}
+                      <div className="card-header bg-white border-bottom p-3 p-md-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div className="d-flex align-items-center gap-3">
+                          <span className="badge bg-dark bg-opacity-75 rounded-pill px-3 py-2 fw-semibold" style={{ fontSize: '0.8rem' }}>
+                            #{catIdx + 1}
+                          </span>
+                          <img 
+                            src={getImageUrl(cat.image, logo)} 
+                            alt={catName} 
+                            width="48" 
+                            height="48" 
+                            className="rounded-3 shadow-sm object-fit-cover border" 
+                          />
+                          <div>
+                            <div className="d-flex align-items-center gap-2">
+                              <h5 className="fw-bold mb-0 text-dark">{catName}</h5>
+                              <span className="badge bg-soft-primary text-primary rounded-pill px-3 py-1 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                                {allCatProducts.length} {allCatProducts.length === 1 ? 'product' : 'products'}
+                              </span>
+                            </div>
+                            <small className="text-muted">Category Position #{catIdx + 1}</small>
+                          </div>
+                        </div>
+
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
+                          {/* Re-order Category */}
+                          <div className="btn-group btn-group-sm rounded-pill border p-1 bg-light shadow-sm me-2" role="group">
+                            <button 
+                              className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center border-0"
+                              style={{ width: '30px', height: '30px', opacity: (catIdx === 0 || !!q) ? 0.3 : 1 }}
+                              disabled={catIdx === 0 || !!q}
+                              onClick={() => handleMoveCategory(catIdx, -1)}
+                              title={q ? "Clear search to reorder" : "Move Category Up"}
+                            >
+                              <i className="bi bi-arrow-up fw-bold text-dark"></i>
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-light rounded-circle p-1 d-flex align-items-center justify-content-center border-0"
+                              style={{ width: '30px', height: '30px', opacity: (catIdx === categories.length - 1 || !!q) ? 0.3 : 1 }}
+                              disabled={catIdx === categories.length - 1 || !!q}
+                              onClick={() => handleMoveCategory(catIdx, 1)}
+                              title={q ? "Clear search to reorder" : "Move Category Down"}
+                            >
+                              <i className="bi bi-arrow-down fw-bold text-dark"></i>
+                            </button>
+                          </div>
+
+                          {/* Category Actions */}
+                          <button 
+                            className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1 shadow-sm"
+                            onClick={() => openAddProductForCategory(catName)}
+                            title="Add product into this category"
+                          >
+                            <i className="bi bi-plus-lg"></i>
+                            <span>Add Product</span>
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-soft-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
+                            onClick={() => openCategoryEditModal(cat)}
+                          >
+                            <i className="bi bi-pencil"></i>
+                            <span>Edit</span>
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-soft-danger rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
+                            onClick={() => handleDeleteCategory(cat._id)}
+                          >
+                            <i className="bi bi-trash"></i>
+                            <span>Delete</span>
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-light rounded-circle shadow-sm border d-flex align-items-center justify-content-center ms-1"
+                            style={{ width: '32px', height: '32px' }}
+                            onClick={() => toggleCategoryCollapse(catName)}
+                            title={isCollapsed ? "Expand Category" : "Collapse Category"}
+                          >
+                            <i className={`bi bi-chevron-${isCollapsed ? 'down' : 'up'}`}></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Respective Products Table */}
+                      {!isCollapsed && (
+                        <div className="card-body p-0">
+                          {catProducts.length === 0 ? (
+                            <div className="text-center py-4 text-muted bg-light bg-opacity-50">
+                              <i className="bi bi-box-seam fs-2 d-block mb-1 text-muted opacity-50"></i>
+                              <p className="mb-2 small fw-semibold">No products in "{catName}" yet.</p>
+                              <button 
+                                className="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-sm"
+                                onClick={() => openAddProductForCategory(catName)}
+                              >
+                                <i className="bi bi-plus-lg me-1"></i> Add First Product
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="table-responsive">
+                              <table className="table table-hover align-middle mb-0 text-nowrap">
+                                <thead className="bg-light border-bottom text-muted small text-uppercase" style={{ fontSize: '0.75rem' }}>
+                                  <tr>
+                                    <th className="ps-4 py-3" style={{ width: '50px' }}>#</th>
+                                    <th className="py-3" style={{ width: '60px' }}>Img</th>
+                                    <th className="py-3">Product Name</th>
+                                    <th className="py-3 text-center">Price</th>
+                                    <th className="py-3 text-center" style={{ width: '110px' }}>Status</th>
+                                    <th className="py-3 text-center" style={{ width: '110px' }}>Reorder Product</th>
+                                    <th className="text-end pe-4 py-3">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {catProducts.map((p, pIdx) => (
+                                    <tr key={p._id || p.id || pIdx} className={p.active === false ? 'opacity-75 bg-light' : ''}>
+                                      <td className="ps-4 text-muted small fw-semibold">{pIdx + 1}</td>
+                                      <td>
+                                        <img 
+                                          src={getImageUrl(p.image, enquiryLogo)} 
+                                          alt={p.name} 
+                                          width="48" 
+                                          height="48" 
+                                          className="rounded-3 shadow-sm object-fit-cover border" 
+                                        />
+                                      </td>
+                                      <td>
+                                        <div className="fw-bold text-dark">{p.name}</div>
+                                        <div className="small text-muted">{p.content}</div>
+                                      </td>
+                                      <td className="text-center">
+                                        <div className="fw-bold text-success">₹{Number(p.rate || 0).toFixed(2)}</div>
+                                        <div className="text-muted small text-decoration-line-through">₹{Number(p.originalRate || 0).toFixed(2)}</div>
+                                      </td>
+                                      <td className="text-center">
+                                        <div className="d-flex flex-column align-items-center gap-1">
+                                          <div className="form-check form-switch p-0 m-0">
+                                            <input 
+                                              className="form-check-input cursor-pointer shadow-none m-0" 
+                                              type="checkbox" 
+                                              role="switch" 
+                                              checked={p.active !== false} 
+                                              onChange={() => handleToggleProductActive(p)}
+                                              title={p.active !== false ? "Active (Click to set Inactive)" : "Inactive (Click to set Active)"}
+                                              style={{ width: '2.4em', height: '1.2em', cursor: 'pointer' }}
+                                            />
+                                          </div>
+                                          <span className={`badge ${p.active !== false ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-pill fw-bold`} style={{ fontSize: '0.65rem' }}>
+                                            {p.active !== false ? 'Active' : 'Inactive'}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="text-center">
+                                        <div className="d-flex justify-content-center gap-1">
+                                          <button 
+                                            className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
+                                            style={{ width: '30px', height: '30px', opacity: (pIdx === 0 || !!q) ? 0.3 : 1 }} 
+                                            disabled={pIdx === 0 || !!q} 
+                                            onClick={() => handleMoveProduct(p, -1)} 
+                                            title={q ? "Clear search to reorder" : "Move Product Up"}>
+                                            <i className="bi bi-arrow-up"></i>
+                                          </button>
+                                          <button 
+                                            className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
+                                            style={{ width: '30px', height: '30px', opacity: (pIdx === allCatProducts.length - 1 || !!q) ? 0.3 : 1 }} 
+                                            disabled={pIdx === allCatProducts.length - 1 || !!q} 
+                                            onClick={() => handleMoveProduct(p, 1)} 
+                                            title={q ? "Clear search to reorder" : "Move Product Down"}>
+                                            <i className="bi bi-arrow-down"></i>
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="text-end pe-4">
+                                        <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)} title="Edit Product">
+                                          <i className="bi bi-pencil"></i>
+                                        </button>
+                                        <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)} title="Delete Product">
+                                          <i className="bi bi-trash"></i>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Uncategorized Products (if any) */}
+              {uncategorizedProducts.length > 0 && (
+                <div className="card border-0 rounded-4 shadow-sm mb-4 overflow-hidden border-warning border-start border-4">
+                  <div className="card-header bg-white border-bottom p-3 p-md-4 d-flex align-items-center justify-content-between">
+                    <div>
+                      <h5 className="fw-bold mb-0 text-warning text-dark">
+                        <i className="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                        Uncategorized Products ({uncategorizedProducts.length})
+                      </h5>
+                      <small className="text-muted">These products have categories that do not match any defined category</small>
+                    </div>
+                  </div>
+                  <div className="card-body p-0">
+                    <div className="table-responsive">
+                      <table className="table table-hover align-middle mb-0 text-nowrap">
+                        <thead className="bg-light border-bottom text-muted small text-uppercase">
+                          <tr>
+                            <th className="ps-4 py-3" style={{ width: '50px' }}>#</th>
+                            <th className="py-3" style={{ width: '60px' }}>Img</th>
+                            <th className="py-3">Product Name</th>
+                            <th className="py-3">Assigned Category</th>
+                            <th className="py-3 text-center">Price</th>
+                            <th className="py-3 text-center" style={{ width: '110px' }}>Status</th>
+                            <th className="text-end pe-4 py-3">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {uncategorizedProducts.map((p, pIdx) => (
+                            <tr key={p._id}>
+                              <td className="ps-4 text-muted small">{pIdx + 1}</td>
+                              <td>
+                                <img src={getImageUrl(p.image, enquiryLogo)} alt={p.name} width="45" height="45" className="rounded-3 shadow-sm object-fit-cover border" />
+                              </td>
+                              <td>
+                                <div className="fw-bold text-dark">{p.name}</div>
+                                <div className="small text-muted">{p.content}</div>
+                              </td>
+                              <td>
+                                <span className="badge bg-warning text-dark rounded-pill px-3 py-1">{p.category || 'None'}</span>
+                              </td>
+                              <td className="text-center">
+                                <div className="fw-bold text-primary">₹{Number(p.rate || 0).toFixed(2)}</div>
+                              </td>
+                              <td className="text-center">
+                                <span className={`badge ${p.active !== false ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-pill fw-bold`}>
+                                  {p.active !== false ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                              <td className="text-end pe-4">
+                                <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)} title="Edit Product">
+                                  <i className="bi bi-pencil"></i>
+                                </button>
+                                <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)} title="Delete Product">
+                                  <i className="bi bi-trash"></i>
+                                </button>
                               </td>
                             </tr>
-                            {catProducts.map((p, idx) => (
-                              <tr key={p._id} className={p.active === false ? 'opacity-75 bg-light' : ''}>
-                                <td className="ps-4 text-muted small">{idx + 1}</td>
-                                <td>
-                                  <img src={getImageUrl(p.image, enquiryLogo)} alt={p.name} width="50" height="50" className="rounded-3 shadow-sm object-fit-cover" />
-                                </td>
-                                <td>
-                                  <div className="fw-bold text-dark">{p.name}</div>
-                                  <div className="small text-muted">{p.content}</div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="fw-bold text-primary">₹{Number(p.rate || 0).toFixed(2)}</div>
-                                  <div className="text-muted small text-decoration-line-through">₹{Number(p.originalRate || 0).toFixed(2)}</div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="d-flex flex-column align-items-center gap-1">
-                                    <div className="form-check form-switch p-0 m-0">
-                                      <input 
-                                        className="form-check-input cursor-pointer shadow-none m-0" 
-                                        type="checkbox" 
-                                        role="switch" 
-                                        checked={p.active !== false} 
-                                        onChange={() => handleToggleProductActive(p)}
-                                        title={p.active !== false ? "Active (Click to set Inactive)" : "Inactive (Click to set Active)"}
-                                        style={{ width: '2.4em', height: '1.2em', cursor: 'pointer' }}
-                                      />
-                                    </div>
-                                    <span className={`badge ${p.active !== false ? 'bg-success text-white' : 'bg-secondary text-white'} rounded-pill fw-bold`} style={{ fontSize: '0.65rem' }}>
-                                      {p.active !== false ? 'Active' : 'Inactive'}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="d-flex justify-content-center gap-1">
-                                    <button 
-                                      className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
-                                      style={{width:'30px', height:'30px', opacity: idx === 0 ? 0.3 : 1}} 
-                                      disabled={idx === 0} 
-                                      onClick={() => handleMoveProduct(p, -1)} 
-                                      title="Move Up">
-                                      <i className="bi bi-arrow-up"></i>
-                                    </button>
-                                    <button 
-                                      className="btn btn-sm btn-outline-secondary rounded-circle p-1 d-flex align-items-center justify-content-center" 
-                                      style={{width:'30px', height:'30px', opacity: idx === catProducts.length - 1 ? 0.3 : 1}} 
-                                      disabled={idx === catProducts.length - 1} 
-                                      onClick={() => handleMoveProduct(p, 1)} 
-                                      title="Move Down">
-                                      <i className="bi bi-arrow-down"></i>
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="text-end pe-4">
-                                  <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)}><i className="bi bi-pencil"></i></button>
-                                  <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)}><i className="bi bi-trash"></i></button>
-                                </td>
-                              </tr>
-                            ))}
-                          </React.Fragment>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-               </div>
-              </div>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1418,59 +1852,6 @@ const Admin = () => {
             </div>
           )}
 
-          {activeSection === 'categories' && (
-            <div className="admin-section animate-fade-in">
-              <div className="d-flex justify-content-between align-items-center mb-5">
-                <div>
-                  <h2 className="fw-bold m-0">Categories</h2>
-                  <p className="text-muted mb-0">Manage categories and their display order</p>
-                </div>
-                <button className="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow-lg hover-scale"
-                        onClick={() => { setEditingCategory(null); setNewCategory({name:'', image:''}); setShowCategoryModal(true); }}>
-                  <i className="bi bi-plus-lg me-2"></i> Add Category
-                </button>
-              </div>
-              <div className="row g-4">
-                {categories.map((cat, i) => (
-                  <div className="col-md-3" key={i}>
-                    <div className="card border-0 rounded-5 shadow-sm overflow-hidden h-100 hover-up position-relative">
-                      {/* Position Badge */}
-                      <div className="position-absolute top-0 start-0 m-2 z-1">
-                        <span className="badge bg-dark bg-opacity-75 rounded-pill px-2 py-1" style={{fontSize:'0.7rem'}}>#{i + 1}</span>
-                      </div>
-                      {/* Up/Down Buttons */}
-                      <div className="position-absolute top-0 end-0 m-2 z-1 d-flex flex-column gap-1">
-                        <button 
-                          className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center border" 
-                          style={{width:'28px', height:'28px', opacity: i === 0 ? 0.35 : 1}} 
-                          disabled={i === 0} 
-                          onClick={() => handleMoveCategory(i, -1)} 
-                          title="Move Up">
-                          <i className="bi bi-arrow-up" style={{fontSize:'0.75rem'}}></i>
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center border" 
-                          style={{width:'28px', height:'28px', opacity: i === categories.length - 1 ? 0.35 : 1}} 
-                          disabled={i === categories.length - 1} 
-                          onClick={() => handleMoveCategory(i, 1)} 
-                          title="Move Down">
-                          <i className="bi bi-arrow-down" style={{fontSize:'0.75rem'}}></i>
-                        </button>
-                      </div>
-                      <img src={getImageUrl(cat.image, logo)} className="card-img-top" alt={cat.name} style={{ height: '150px', objectFit: 'cover' }} />
-                      <div className="card-body p-4 text-center">
-                        <h5 className="fw-bold mb-3">{cat.name}</h5>
-                        <div className="d-flex justify-content-center gap-2">
-                          <button className="btn btn-sm btn-soft-primary rounded-pill px-3" onClick={() => openCategoryEditModal(cat)}>Edit</button>
-                          <button className="btn btn-sm btn-soft-danger rounded-pill px-3" onClick={() => handleDeleteCategory(cat._id)}>Delete</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {activeSection === 'admins' && (
             <div className="admin-section animate-fade-in">
