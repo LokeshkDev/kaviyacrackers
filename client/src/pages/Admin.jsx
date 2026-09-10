@@ -107,9 +107,12 @@ const Admin = () => {
 
   const openAddProductForCategory = (categoryName) => {
     setEditingProduct(null);
+    const defaultCat = categories.length > 0 
+      ? (typeof categories[0] === 'string' ? categories[0] : categories[0].name)
+      : '';
     setNewProduct({
       name: '',
-      category: categoryName || (categories[0]?.name || ''),
+      category: categoryName || defaultCat,
       content: '',
       rate: '',
       originalRate: '',
@@ -137,6 +140,28 @@ const Admin = () => {
       );
     });
   }, [categories, catalogSearch, groupedProducts]);
+
+  // Sanitize helpers to guarantee clean payloads for API without CastError on _id
+  const sanitizeProductsForApi = (prods) => {
+    return prods.map(p => {
+      const copy = { ...p };
+      if (copy._id && (String(copy._id).startsWith('temp_') || !/^[0-9a-fA-F]{24}$/.test(String(copy._id)))) {
+        delete copy._id;
+      }
+      return copy;
+    });
+  };
+
+  const sanitizeCategoriesForApi = (cats) => {
+    return cats.map(c => {
+      if (typeof c === 'string') return { name: c, image: '', link: 'shop.html' };
+      const copy = { ...c };
+      if (copy._id && (String(copy._id).startsWith('temp_') || !/^[0-9a-fA-F]{24}$/.test(String(copy._id)))) {
+        delete copy._id;
+      }
+      return copy;
+    });
+  };
 
   // Move product up or down within its category group
   const handleMoveProduct = async (product, direction) => {
@@ -169,7 +194,7 @@ const Admin = () => {
     setProducts(newProducts);
 
     try {
-      await api.post('/data', { products: newProducts });
+      await api.post('/data', { products: sanitizeProductsForApi(newProducts) });
       loadData();
     } catch (err) {
       alert('Failed to reorder product');
@@ -215,7 +240,10 @@ const Admin = () => {
     setProducts(newProducts);
 
     try {
-      await api.post('/data', { categories: newCategories, products: newProducts });
+      await api.post('/data', { 
+        categories: sanitizeCategoriesForApi(newCategories), 
+        products: sanitizeProductsForApi(newProducts) 
+      });
       loadData();
     } catch (err) {
       alert('Failed to reorder category');
@@ -559,7 +587,7 @@ const Admin = () => {
       try {
         const nextProducts = products.filter((p) => String(p._id) !== String(id) && String(p.id) !== String(id));
         setProducts(nextProducts);
-        await api.post('/data', { products: nextProducts });
+        await api.post('/data', { products: sanitizeProductsForApi(nextProducts) });
         loadData();
       } catch (err) {
         alert("Failed to delete product");
@@ -576,7 +604,7 @@ const Admin = () => {
     );
     setProducts(updatedProducts);
     try {
-      await api.post('/data', { products: updatedProducts });
+      await api.post('/data', { products: sanitizeProductsForApi(updatedProducts) });
     } catch (err) {
       console.error("Failed to toggle product status:", err);
       alert("Failed to update product status");
@@ -630,12 +658,12 @@ const Admin = () => {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     try {
-      const rate = parseInt(String(newProduct.rate), 10);
-      const originalRate = parseInt(String(newProduct.originalRate), 10);
+      const rate = parseFloat(String(newProduct.rate));
+      const originalRate = parseFloat(String(newProduct.originalRate));
       const payload = {
-        name: newProduct.name,
-        category: newProduct.category,
-        content: newProduct.content,
+        name: (newProduct.name || '').trim(),
+        category: (newProduct.category || '').trim(),
+        content: (newProduct.content || '').trim(),
         rate: Number.isFinite(rate) ? rate : 0,
         originalRate: Number.isFinite(originalRate) ? originalRate : 0,
         image: newProduct.image || '',
@@ -660,17 +688,16 @@ const Admin = () => {
         }
       } else {
         // Adding NEW product: always append to the LAST position of its category
-        const maxId = products.length ? Math.max(...products.map((p) => p.id || 0), 0) : 0;
+        const maxId = products.length ? Math.max(...products.map((p) => Number(p.id) || 0), 0) : 0;
         const newProdItem = {
           id: maxId + 1,
-          _id: 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
           ...payload
         };
         nextProducts = insertProductAtEndOfCategory(products, newProdItem, categories);
       }
 
       setProducts(nextProducts);
-      await api.post('/data', { products: nextProducts });
+      await api.post('/data', { products: sanitizeProductsForApi(nextProducts) });
       setShowProductModal(false);
       setEditingProduct(null);
       setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true });
@@ -684,12 +711,12 @@ const Admin = () => {
   const openEditModal = (p) => {
     setEditingProduct(p);
     setNewProduct({
-      name: p.name,
-      category: p.category,
-      content: p.content,
-      rate: p.rate,
-      originalRate: p.originalRate,
-      image: p.image,
+      name: p.name || '',
+      category: p.category || '',
+      content: p.content || '',
+      rate: p.rate ?? '',
+      originalRate: p.originalRate ?? '',
+      image: p.image || '',
       active: p.active !== false
     });
     setShowProductModal(true);
@@ -701,14 +728,14 @@ const Admin = () => {
       let nextCategories;
       let nextProducts = products;
       if (editingCategory) {
-        const catMatchId = (c) => (c._id ? String(c._id) : c.name);
-        const targetId = editingCategory._id ? String(editingCategory._id) : editingCategory.name;
+        const catMatchId = (c) => (c._id ? String(c._id) : (typeof c === 'string' ? c : c.name));
+        const targetId = editingCategory._id ? String(editingCategory._id) : (typeof editingCategory === 'string' ? editingCategory : editingCategory.name);
         const oldName = typeof editingCategory === 'string' ? editingCategory : editingCategory.name;
         const newName = newCategory.name.trim();
 
         nextCategories = categories.map((c) =>
           catMatchId(c) === targetId
-            ? { ...c, name: newName, image: newCategory.image || '' }
+            ? { ...(typeof c === 'object' ? c : {}), name: newName, image: newCategory.image || '', link: 'shop.html' }
             : c
         );
 
@@ -729,10 +756,14 @@ const Admin = () => {
 
       setCategories(nextCategories);
 
-      if (editingCategory && (editingCategory.name !== newCategory.name.trim())) {
-        await api.post('/data', { categories: nextCategories, products: nextProducts });
+      const oldCatName = editingCategory ? (typeof editingCategory === 'string' ? editingCategory : editingCategory.name) : null;
+      if (editingCategory && (oldCatName !== newCategory.name.trim())) {
+        await api.post('/data', { 
+          categories: sanitizeCategoriesForApi(nextCategories), 
+          products: sanitizeProductsForApi(nextProducts) 
+        });
       } else {
-        await api.post('/data', { categories: nextCategories });
+        await api.post('/data', { categories: sanitizeCategoriesForApi(nextCategories) });
       }
 
       setShowCategoryModal(false);
@@ -748,9 +779,9 @@ const Admin = () => {
   const handleDeleteCategory = async (id) => {
     if (window.confirm("Are you sure you want to delete this category? This might affect products in this category.")) {
       try {
-        const nextCategories = categories.filter((c) => String(c._id) !== String(id) && c.name !== id);
+        const nextCategories = categories.filter((c) => String(c._id) !== String(id) && (typeof c === 'string' ? c : c.name) !== id);
         setCategories(nextCategories);
-        await api.post('/data', { categories: nextCategories });
+        await api.post('/data', { categories: sanitizeCategoriesForApi(nextCategories) });
         loadData();
       } catch (err) {
         alert("Failed to delete category");
@@ -760,7 +791,9 @@ const Admin = () => {
 
   const openCategoryEditModal = (c) => {
     setEditingCategory(c);
-    setNewCategory({ name: c.name, image: c.image });
+    const name = typeof c === 'string' ? c : (c.name || '');
+    const image = typeof c === 'string' ? '' : (c.image || '');
+    setNewCategory({ name, image });
     setShowCategoryModal(true);
   };
 
@@ -817,7 +850,7 @@ const Admin = () => {
     const isFromBillingPanel = cancellation.includes('Billing Panel');
 
     const invoiceDate = new Date(order.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const invoiceNo = `KAV-${String(order._id).slice(-6).toUpperCase()}`;
+    const invoiceNo = `KAV-${String(order._id || order.id || 'INV').slice(-6).toUpperCase()}`;
     const items = order.items || [];
 
     if (isFromBillingPanel) {
@@ -1526,7 +1559,7 @@ const Admin = () => {
                           </button>
                           <button 
                             className="btn btn-sm btn-soft-danger rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
-                            onClick={() => handleDeleteCategory(cat._id)}
+                            onClick={() => handleDeleteCategory(cat._id || cat.name)}
                           >
                             <i className="bi bi-trash"></i>
                             <span>Delete</span>
@@ -1633,7 +1666,7 @@ const Admin = () => {
                                         <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)} title="Edit Product">
                                           <i className="bi bi-pencil"></i>
                                         </button>
-                                        <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)} title="Delete Product">
+                                        <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id || p.id)} title="Delete Product">
                                           <i className="bi bi-trash"></i>
                                         </button>
                                       </td>
@@ -1678,7 +1711,7 @@ const Admin = () => {
                         </thead>
                         <tbody>
                           {uncategorizedProducts.map((p, pIdx) => (
-                            <tr key={p._id}>
+                            <tr key={p._id || p.id || pIdx}>
                               <td className="ps-4 text-muted small">{pIdx + 1}</td>
                               <td>
                                 <img src={getImageUrl(p.image, enquiryLogo)} alt={p.name} width="45" height="45" className="rounded-3 shadow-sm object-fit-cover border" />
@@ -1702,7 +1735,7 @@ const Admin = () => {
                                 <button className="btn btn-sm btn-soft-primary rounded-circle me-2 p-2" onClick={() => openEditModal(p)} title="Edit Product">
                                   <i className="bi bi-pencil"></i>
                                 </button>
-                                <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id)} title="Delete Product">
+                                <button className="btn btn-sm btn-soft-danger rounded-circle p-2" onClick={() => handleDeleteProduct(p._id || p.id)} title="Delete Product">
                                   <i className="bi bi-trash"></i>
                                 </button>
                               </td>
@@ -2136,7 +2169,10 @@ const Admin = () => {
                       <select className="form-select rounded-4 bg-white-tertiary border-0 py-2" required
                               value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>
                         <option value="">Select...</option>
-                        {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                        {categories.map((c, i) => {
+                          const name = typeof c === 'string' ? c : c.name;
+                          return <option key={c._id || name || i} value={name}>{name}</option>;
+                        })}
                       </select>
                     </div>
                     <div className="col-md-6">
@@ -2146,12 +2182,12 @@ const Admin = () => {
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Offer Rate (₹)</label>
-                      <input type="number" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
+                      <input type="number" step="any" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.rate} onChange={e => setNewProduct({...newProduct, rate: e.target.value})} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Original Rate (₹)</label>
-                      <input type="number" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
+                      <input type="number" step="any" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.originalRate} onChange={e => setNewProduct({...newProduct, originalRate: e.target.value})} />
                     </div>
                     <div className="col-12">
@@ -2256,7 +2292,7 @@ const Admin = () => {
                     <i className="bi bi-receipt-cutoff me-2 text-primary"></i>
                     Order Details
                   </h5>
-                  <span className="text-muted small">Invoice #{`KAV-${String(selectedOrder._id).slice(-6).toUpperCase()}`}</span>
+                  <span className="text-muted small">Invoice #{`KAV-${String(selectedOrder._id || selectedOrder.id || 'INV').slice(-6).toUpperCase()}`}</span>
                 </div>
                 <button type="button" className="btn-close" onClick={() => setShowOrderModal(false)}></button>
               </div>

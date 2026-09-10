@@ -882,15 +882,75 @@ app.post('/api/data', async (req, res) => {
     try {
         const { products, categories, orders, settings } = req.body;
         
-        if (products) {
+        if (products && Array.isArray(products)) {
+            // Find current max numeric id
+            let maxId = 0;
+            products.forEach(p => {
+                const n = Number(p.id);
+                if (Number.isFinite(n) && n > maxId) maxId = n;
+            });
+
+            const seenIds = new Set();
+            const sanitizedProducts = products.map((p) => {
+                const doc = typeof p.toObject === 'function' ? p.toObject() : { ...p };
+
+                // Strip invalid/temporary _id so Mongoose automatically generates a valid ObjectId
+                if (doc._id) {
+                    const idStr = String(doc._id);
+                    if (!mongoose.Types.ObjectId.isValid(idStr) || idStr.length !== 24) {
+                        delete doc._id;
+                    }
+                }
+
+                // Guarantee a unique, positive numeric id for unique index
+                let numId = Number(doc.id);
+                if (!Number.isFinite(numId) || numId <= 0 || seenIds.has(numId)) {
+                    maxId += 1;
+                    numId = maxId;
+                }
+                seenIds.add(numId);
+                doc.id = numId;
+
+                doc.name = String(doc.name || '').trim();
+                doc.category = String(doc.category || '').trim();
+                doc.content = String(doc.content || '').trim();
+                doc.rate = Number.isFinite(Number(doc.rate)) ? Number(doc.rate) : 0;
+                doc.originalRate = Number.isFinite(Number(doc.originalRate)) ? Number(doc.originalRate) : 0;
+                doc.image = doc.image || '';
+                doc.active = doc.active !== false;
+
+                delete doc.__v;
+                return doc;
+            });
+
             await Product.deleteMany({});
-            await Product.insertMany(products);
+            await Product.insertMany(sanitizedProducts, { ordered: true });
         }
-        if (categories) {
+
+        if (categories && Array.isArray(categories)) {
+            const sanitizedCategories = categories.map((c) => {
+                if (typeof c === 'string') {
+                    return { name: c, image: '', link: 'shop.html' };
+                }
+                const doc = typeof c.toObject === 'function' ? c.toObject() : { ...c };
+                if (doc._id) {
+                    const idStr = String(doc._id);
+                    if (!mongoose.Types.ObjectId.isValid(idStr) || idStr.length !== 24) {
+                        delete doc._id;
+                    }
+                }
+                doc.name = String(doc.name || '').trim();
+                doc.image = doc.image || '';
+                doc.link = doc.link || 'shop.html';
+                delete doc.__v;
+                return doc;
+            });
+
             await Category.deleteMany({});
-            await Category.insertMany(categories);
+            await Category.insertMany(sanitizedCategories, { ordered: true });
         }
-        if (orders) {
+
+        if (orders && Array.isArray(orders)) {
             await Order.deleteMany({});
             await Order.insertMany(orders);
         }
@@ -901,6 +961,7 @@ app.post('/api/data', async (req, res) => {
         }
         res.json({ success: true });
     } catch (err) {
+        console.error('Error in POST /api/data:', err);
         res.status(500).json({ error: err.message });
     }
 });
