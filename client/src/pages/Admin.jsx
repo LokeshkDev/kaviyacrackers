@@ -33,9 +33,20 @@ const Admin = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [settings, setSettings] = useState({ 
+    companyName: '', 
+    phone: '', 
+    whatsapp: '', 
+    email: '', 
+    address: '',
+    gstNumber: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    branchName: ''
+  });
   const [isSyncing, setIsSyncing] = useState(false);
-  const [settings, setSettings] = useState({ phone: '', whatsapp: '', email: '', address: '' });
-  const [settingsSaveStatus, setSettingsSaveStatus] = useState(null);
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState(null); // 'saving', 'success', 'error'
 
   // Admin user management state
   const [admins, setAdmins] = useState([]);
@@ -393,7 +404,7 @@ const Admin = () => {
       setOrders(data.orders || []);
       setProducts(data.products || []);
       setCategories(data.categories || []);
-      if (data.settings) setSettings(data.settings);
+      if (data.settings) setSettings(prev => ({ ...prev, ...data.settings }));
     }
   };
 
@@ -904,6 +915,11 @@ const Admin = () => {
       const companyNameText = settings?.companyName || 'KAVIYA CRACKERS';
       const companyAddressText = settings?.address || '3/574, Sivakasi to Sattur Main Road, Near Anuupankulam Bus Stop, Sivakasi - 626189, Virudhunagar (Dt.), Tamil Nadu.';
       const companyPhoneText = settings?.phone || '8248361625';
+      const companyGstText = order.companyGst || settings?.gstNumber || '';
+      const bankNameText = order.bankName || settings?.bankName || '';
+      const accountNumberText = order.accountNumber || settings?.accountNumber || '';
+      const ifscCodeText = order.ifscCode || settings?.ifscCode || '';
+      const branchNameText = order.branchName || settings?.branchName || '';
 
       const htmlContent =
         '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + docTitleLabel + ' - ' + docNo + '</title><style>' +
@@ -930,7 +946,7 @@ const Admin = () => {
         '.text-center{text-align:center;}.text-end{text-align:right;}.font-monospace{font-family:monospace;}' +
         '.totals-row td{border-top:2px solid #000;border-bottom:2px solid #000;font-weight:bold;padding:8px;}' +
         '.amount-in-words-row td{padding:12px;}' +
-        '.declaration-box{width:60%;padding:12px;font-size:8pt;line-height:1.4;}' +
+        '.declaration-box{padding:10px;font-size:8pt;line-height:1.4;}' +
         '.signatory-box{padding:12px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;}' +
         '.footer-note{text-align:center;font-weight:bold;margin-top:15px;font-size:9pt;}' +
         '@media print{body{padding:0;}@page{size:A4 portrait;margin:1cm;}.d-print-none{display:none!important;}thead{display:table-header-group;}tbody{display:table-row-group;}}' +
@@ -941,7 +957,9 @@ const Admin = () => {
         '<div style="max-width:800px;margin:0 auto;"><table class="print-master-table"><thead><tr><td style="padding:0;border-bottom:2px solid #000;"><div class="bill-sheet">' +
         '<div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size:11pt;">' + docTitleLabel + '</div>' +
         '<div class="row-flex align-items-center"><div class="header-logo border-right-black"><div class="header-logo-box"><img src="' + logoUrl + '" class="logo-img" /></div></div>' +
-        '<div class="header-details"><h1>' + companyNameText + '</h1><p>' + companyAddressText + '</p><p style="font-weight:bold;margin-top:2px;">Ph: ' + companyPhoneText + '</p></div></div></div></td></tr></thead><tbody><tr><td style="padding:0;"><div class="bill-sheet">' +
+        '<div class="header-details"><h1>' + companyNameText + '</h1><p>' + companyAddressText + '</p><p style="font-weight:bold;margin-top:2px;">Ph: ' + companyPhoneText + '</p>' +
+        (isInvoice && companyGstText ? '<p style="font-weight:bold;margin-top:3px;font-size:10pt;letter-spacing:0.5px;">GSTIN : <span style="font-family:monospace;">' + companyGstText + '</span></p>' : '') +
+        '</div></div></div></td></tr></thead><tbody><tr><td style="padding:0;"><div class="bill-sheet">' +
         '<div class="row-flex border-bottom-black" style="min-height:115px;"><div class="buyer-box border-right-black"><div class="box-title">Buyer</div>' +
         '<p style="font-weight:bold;font-size:10pt;margin-bottom:2px;">' + (order.customerName || 'In-Store Cash Customer') + '</p>' +
         '<p style="font-size:9pt;color:#222;line-height:1.4;white-space:pre-line;">' + (order.customerAddress || '') + '</p>' +
@@ -958,28 +976,59 @@ const Admin = () => {
           '<td class="text-end font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">₹' + (item.originalRate || item.rate || 0).toFixed(2) + '</td>' +
           '<td class="text-end font-monospace" style="font-weight:bold;border-bottom:1.5px solid #000;">₹' + ((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2) + '</td></tr>'
         ).join('') + paddingRowsHtml +
-        '</tbody></table>' +
-        '<table class="totals-and-declaration-table" style="width:100%;border-collapse:collapse;page-break-inside:avoid;break-inside:avoid;border-top:none;"><tbody>' +
-        '<tr class="totals-row"><td style="width:55%;border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Total</td>' +
-        '<td style="width:15%;border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:8px;">' + totalQty + '</td>' +
-        '<td style="width:15%;border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Sub total</td>' +
-        '<td style="width:15%;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
-        '<tr><td colSpan="3" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discount (' + discountPercent + '%)</td>' +
+        '</tbody>' +
+        '<tbody style="page-break-inside:avoid;break-inside:avoid;">' +
+        '<tr class="totals-row" style="border-top:2px solid #000;">' +
+        '<td colSpan="2" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Total</td>' +
+        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:8px;">' + totalQty + '</td>' +
+        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Sub total</td>' +
+        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
+        '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discount (' + discountPercent + '%)</td>' +
         '<td style="border-bottom:1.5px solid #000;text-align:right;color:#d9534f;font-weight:bold;padding:6px 8px;" class="font-monospace">-₹' + discountAmount.toFixed(2) + '</td></tr>' +
-        '<tr><td colSpan="3" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discounted Total</td>' +
+        '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discounted Total</td>' +
         '<td style="border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;" class="font-monospace">₹' + totalAmount.toFixed(2) + '</td></tr>' +
-        '<tr><td colSpan="3" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Bill Total</td>' +
+        '<tr style="border-bottom:2px solid #000;"><td colSpan="4" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:11pt;padding:6px 8px;">Bill Total</td>' +
         '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:11pt;padding:6px 8px;" class="font-monospace">₹' + totalAmount.toFixed(2) + '</td></tr>' +
-        '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:10px;">' +
+        '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:10px;text-align:left;">' +
         '<div style="font-size:8.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">Amount Chargeable (in words):</div>' +
         '<div style="font-weight:bold;font-size:9.5pt;">' + numberToWords(totalAmount) + '</div>' +
-        '<div class="text-end" style="font-size:8.5pt;color:#555;font-style:italic;margin-top:-10px;">E. & O.E</div></td></tr>' +
-        '<tr style="height:100px;"><td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:10px;vertical-align:top;">' +
-        '<div style="font-weight:bold;text-decoration:underline;margin-bottom:4px;">Declaration</div>We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</td>' +
-        '<td colSpan="2" class="signatory-box" style="padding:10px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;border:none;height:100px;">' +
-        '<div style="font-weight:bold;text-transform:uppercase;font-size:9pt;">For ' + companyNameText + '</div>' +
-        '<div style="font-size:8.5pt;color:#444;margin-top:45px;">Authorised Signatory</div></td></tr></tbody></table></div></td></tr></tbody></table>' +
-        '<div class="footer-note">*** Composition dealer is not eligible to collect the taxes on supply. ***</div></div></body></html>';
+        '<div style="text-align:right;font-size:8.5pt;color:#555;font-style:italic;margin-top:-10px;">E. &amp; O.E</div></td></tr>' +
+        (isInvoice ? 
+          '<tr style="height:110px;">' +
+          '<td colSpan="2" class="declaration-box" style="border-right:2px solid #000;padding:8px 10px;vertical-align:top;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:3px;font-size:8.5pt;">Declaration &amp; Disclaimer</div>' +
+            '<p style="font-size:7.5pt;line-height:1.35;color:#111;margin-bottom:4px;">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>' +
+            '<div style="font-size:7pt;color:#444;line-height:1.3;">* All disputes subject to local jurisdiction.<br/>* Goods once sold will not be taken back or exchanged.</div>' +
+          '</td>' +
+          '<td colSpan="2" style="border-right:2px solid #000;padding:8px 10px;vertical-align:top;font-size:8pt;line-height:1.45;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:4px;font-size:8.5pt;">Bank &amp; GST Details</div>' +
+            '<table style="width:100%;font-size:8pt;border-collapse:collapse;">' +
+              (companyGstText ? '<tr><td style="font-weight:bold;width:65px;padding:1px 0;">GSTIN</td><td>: <strong>' + companyGstText + '</strong></td></tr>' : '') +
+              (bankNameText ? '<tr><td style="font-weight:bold;width:65px;padding:1px 0;">Bank</td><td>: ' + bankNameText + '</td></tr>' : '') +
+              (accountNumberText ? '<tr><td style="font-weight:bold;padding:1px 0;">A/c No</td><td>: <strong>' + accountNumberText + '</strong></td></tr>' : '') +
+              (ifscCodeText ? '<tr><td style="font-weight:bold;padding:1px 0;">IFSC</td><td>: <strong>' + ifscCodeText + '</strong></td></tr>' : '') +
+              (branchNameText ? '<tr><td style="font-weight:bold;padding:1px 0;">Branch</td><td>: ' + branchNameText + '</td></tr>' : '') +
+            '</table>' +
+          '</td>' +
+          '<td colSpan="1" class="signatory-box" style="padding:8px 10px;vertical-align:top;text-align:right;height:110px;">' +
+            '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:8.5pt;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:8pt;color:#444;margin-top:45px;">Authorised Signatory</div>' +
+            '</div>' +
+          '</td></tr>'
+        : 
+          '<tr style="height:100px;">' +
+          '<td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:10px;vertical-align:top;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:4px;">Declaration</div>We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</td>' +
+          '<td colSpan="2" class="signatory-box" style="padding:10px;vertical-align:top;text-align:right;height:100px;">' +
+            '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:9pt;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:8.5pt;color:#444;margin-top:45px;">Authorised Signatory</div>' +
+            '</div>' +
+          '</td></tr>'
+        ) +
+        '</tbody></table></div></td></tr></tbody></table>' +
+        '<div class="footer-note">' + (isInvoice ? '*** This is a Computer Generated Tax Invoice ***' : '*** Composition dealer is not eligible to collect the taxes on supply. ***') + '</div></div></body></html>';
 
       printWindow.document.write(htmlContent);
       printWindow.document.close();
@@ -2126,6 +2175,55 @@ const Admin = () => {
                         <label htmlFor="storeAddress">Store Physical Address (Shown on Invoices)</label>
                       </div>
                     </div>
+
+                    <div className="col-12 mt-3 pt-2 border-top">
+                      <h5 className="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                        <i className="bi bi-bank text-primary"></i> Invoice Tax &amp; Banking Details
+                      </h5>
+                      <p className="text-muted small mb-0">These details will be displayed on Tax Invoices in the header (GSTIN) and alongside the declaration (Bank Details).</p>
+                    </div>
+
+                    <div className="col-md-6">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeGstNumber" 
+                               value={settings.gstNumber || ''} onChange={e => setSettings({...settings, gstNumber: e.target.value})} 
+                               placeholder="GSTIN Number" />
+                        <label htmlFor="storeGstNumber">GSTIN Number (e.g. 33AAAAA0000A1Z5)</label>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeBankName" 
+                               value={settings.bankName || ''} onChange={e => setSettings({...settings, bankName: e.target.value})} 
+                               placeholder="Bank Name" />
+                        <label htmlFor="storeBankName">Bank Name (e.g. State Bank of India / HDFC Bank)</label>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeAccountNumber" 
+                               value={settings.accountNumber || ''} onChange={e => setSettings({...settings, accountNumber: e.target.value})} 
+                               placeholder="Bank A/c No" />
+                        <label htmlFor="storeAccountNumber">Account Number (e.g. 123456789012)</label>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeIfscCode" 
+                               value={settings.ifscCode || ''} onChange={e => setSettings({...settings, ifscCode: e.target.value})} 
+                               placeholder="IFSC Code" />
+                        <label htmlFor="storeIfscCode">IFSC Code (e.g. SBIN0001234)</label>
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <div className="form-floating">
+                        <input type="text" className="form-control rounded-4 border-light bg-white-tertiary" id="storeBranchName" 
+                               value={settings.branchName || ''} onChange={e => setSettings({...settings, branchName: e.target.value})} 
+                               placeholder="Branch Name" />
+                        <label htmlFor="storeBranchName">Branch Name (e.g. Sivakasi Main Branch)</label>
+                      </div>
+                    </div>
+
                     <div className="col-12 mt-4">
                       <button type="submit" className="btn btn-primary rounded-pill px-5 fw-bold shadow-sm d-flex align-items-center gap-2" disabled={settingsSaveStatus === 'saving'}>
                         {settingsSaveStatus === 'saving' ? <><i className="bi bi-arrow-repeat fa-spin"></i> Saving...</> : <><i className="bi bi-save"></i> Save Settings</>}

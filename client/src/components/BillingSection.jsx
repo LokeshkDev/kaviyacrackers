@@ -56,6 +56,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   const [companyName, setCompanyName] = useState('KAVIYA CRACKERS');
   const [companyAddress, setCompanyAddress] = useState('3/574, Sivakasi to Sattur Main Road, Near Anuupankulam Bus Stop, Sivakasi - 626189, Virudhunagar (Dt.), Tamil Nadu.');
   const [companyPhone, setCompanyPhone] = useState('8248361625');
+  const [companyGst, setCompanyGst] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [branchName, setBranchName] = useState('');
 
   // Customer / Buyer State
   const [customer, setCustomer] = useState({
@@ -105,9 +110,14 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   // Sync settings when loaded
   useEffect(() => {
     if (settings) {
-      setCompanyName(settings.companyName || 'KAVIYA CRACKERS');
-      setCompanyAddress(settings.address || '3/574, Sivakasi to Sattur Main Road, Near Anuupankulam Bus Stop, Sivakasi - 626189, Virudhunagar (Dt.), Tamil Nadu.');
-      setCompanyPhone(settings.phone || '8248361625');
+      if (settings.companyName) setCompanyName(settings.companyName);
+      if (settings.address) setCompanyAddress(settings.address);
+      if (settings.phone) setCompanyPhone(settings.phone);
+      if (settings.gstNumber) setCompanyGst(settings.gstNumber);
+      if (settings.bankName) setBankName(settings.bankName);
+      if (settings.accountNumber) setAccountNumber(settings.accountNumber);
+      if (settings.ifscCode) setIfscCode(settings.ifscCode);
+      if (settings.branchName) setBranchName(settings.branchName);
     }
   }, [settings]);
 
@@ -417,7 +427,12 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         totalAmount: totals.discountedTotal,
         status: 'Completed',
         date: new Date(invoiceDate),
-        cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`
+        cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`,
+        companyGst: docType === 'Invoice' ? companyGst : '',
+        bankName: docType === 'Invoice' ? bankName : '',
+        accountNumber: docType === 'Invoice' ? accountNumber : '',
+        ifscCode: docType === 'Invoice' ? ifscCode : '',
+        branchName: docType === 'Invoice' ? branchName : ''
       };
 
       const res = await api.post('/orders', invoiceData);
@@ -780,7 +795,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     }
 
     const cancellation = order.cancellationNote || '';
-    const isInvoice = cancellation.includes('INV') || cancellation.includes('Invoice');
+    const isInvoice = cancellation.includes('INV') || cancellation.includes('Invoice') || (order.cancellationNote === undefined && docType === 'Invoice');
     const docTitleLabel = isInvoice ? 'Tax Invoice' : 'Estimate';
     const docNoLabel = isInvoice ? 'Invoice No.' : 'Estimate No.';
     
@@ -789,6 +804,12 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       : (cancellation.includes('Invoice:')
           ? cancellation.split('Invoice:').pop().trim()
           : `EST-${String(order._id || 'TEMP').slice(-6).toUpperCase()}`);
+
+    const companyGstText = order.companyGst !== undefined ? order.companyGst : companyGst;
+    const bankNameText = order.bankName !== undefined ? order.bankName : bankName;
+    const accountNumberText = order.accountNumber !== undefined ? order.accountNumber : accountNumber;
+    const ifscCodeText = order.ifscCode !== undefined ? order.ifscCode : ifscCode;
+    const branchNameText = order.branchName !== undefined ? order.branchName : branchName;
 
     const items = order.items || [];
     const subtotal = order.subtotalAmount || items.reduce((sum, item) => sum + ((item.originalRate || item.rate || 0) * (item.quantity || 0)), 0);
@@ -846,7 +867,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     .font-monospace { font-family: monospace; }
     .totals-row td { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; padding: 8px; }
     .amount-in-words-row td { padding: 12px; }
-    .declaration-box { width: 60%; padding: 12px; font-size: 8pt; line-height: 1.4; }
+    .declaration-box { padding: 10px; font-size: 8pt; line-height: 1.4; }
     .signatory-box { padding: 12px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
     .footer-note { text-align: center; font-weight: bold; margin-top: 15px; font-size: 9pt; }
     @media print {
@@ -901,6 +922,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                   <h1>${companyName}</h1>
                   <p>${companyAddress}</p>
                   <p style="font-weight: bold; margin-top: 2px;">Ph: ${companyPhone}</p>
+                  ${isInvoice && companyGstText ? `<p style="font-weight: bold; margin-top: 3px; font-size: 10pt; letter-spacing: 0.5px;">GSTIN : <span style="font-family: monospace;">${companyGstText}</span></p>` : ''}
                 </div>
               </div>
             </div>
@@ -958,50 +980,83 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                   
                   ${paddingHtml}
                 </tbody>
-              </table>
 
-              <table class="totals-and-declaration-table" style="width: 100%; border-collapse: collapse; page-break-inside: avoid; break-inside: avoid; border-top: none;">
-                <tbody>
-                  <tr class="totals-row">
-                    <td style="width: 55%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Total</td>
-                    <td style="width: 15%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 8px;">${totalQty}</td>
-                    <td style="width: 15%; border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Sub total</td>
-                    <td style="width: 15%; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
+                <tbody style="page-break-inside: avoid; break-inside: avoid;">
+                  <tr class="totals-row" style="border-top: 2px solid #000;">
+                    <td colSpan="2" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Total</td>
+                    <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 8px;">${totalQty}</td>
+                    <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Sub total</td>
+                    <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
                   </tr>
                   
                   <tr>
-                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discount (${discountPct}%)</td>
+                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discount (${discountPct}%)</td>
                     <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 6px 8px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
                   </tr>
                   
                   <tr>
-                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discounted Total</td>
+                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discounted Total</td>
                     <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
                   </tr>
                   
-                  <tr>
-                    <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Bill Total</td>
+                  <tr style="border-bottom: 2px solid #000;">
+                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 11pt; padding: 6px 8px;">Bill Total</td>
                     <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 11pt; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
                   </tr>
 
                   <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
-                    <td colSpan="5" style="border-bottom: 2px solid #000; padding: 10px;">
+                    <td colSpan="5" style="border-bottom: 2px solid #000; padding: 10px; text-align: left;">
                       <div style="font-size: 8.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Amount Chargeable (in words):</div>
                       <div style="font-weight: bold; font-size: 9.5pt;">${numberToWords(totalAmount)}</div>
-                      <div class="text-end" style="font-size: 8.5pt; color: #555; font-style: italic; margin-top: -10px;">E. & O.E</div>
+                      <div style="text-align: right; font-size: 8.5pt; color: #555; font-style: italic; margin-top: -10px;">E. &amp; O.E</div>
                     </td>
                   </tr>
 
-                  <tr style="height: 100px;">
-                    <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 10px; vertical-align: top;">
-                      <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Declaration</div>
-                      We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
-                    </td>
-                    <td colSpan="2" class="signatory-box" style="padding: 10px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; border: none; height: 100px;">
-                      <div style="font-weight: bold; text-transform: uppercase; font-size: 9pt;">For ${companyName}</div>
-                      <div style="font-size: 8.5pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
-                    </td>
-                  </tr>
+                  ${isInvoice ? `
+                    <tr style="height: 110px;">
+                      <td colSpan="2" class="declaration-box" style="border-right: 2px solid #000; padding: 8px 10px; vertical-align: top; text-align: left;">
+                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 3px; font-size: 8.5pt;">Declaration &amp; Disclaimer</div>
+                        <p style="font-size: 7.5pt; line-height: 1.35; color: #111; margin-bottom: 4px;">
+                          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                        </p>
+                        <div style="font-size: 7pt; color: #444; line-height: 1.3;">
+                          * All disputes subject to local jurisdiction.<br/>
+                          * Goods once sold will not be taken back or exchanged.
+                        </div>
+                      </td>
+                      <td colSpan="2" style="border-right: 2px solid #000; padding: 8px 10px; vertical-align: top; font-size: 8pt; line-height: 1.45; text-align: left;">
+                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px; font-size: 8.5pt;">Bank &amp; GST Details</div>
+                        <table style="width: 100%; font-size: 8pt; border-collapse: collapse;">
+                          ${companyGstText ? `<tr><td style="font-weight: bold; width: 65px; padding: 1px 0;">GSTIN</td><td>: <strong>${companyGstText}</strong></td></tr>` : ''}
+                          ${bankNameText ? `<tr><td style="font-weight: bold; width: 65px; padding: 1px 0;">Bank</td><td>: ${bankNameText}</td></tr>` : ''}
+                          ${accountNumberText ? `<tr><td style="font-weight: bold; padding: 1px 0;">A/c No</td><td>: <strong>${accountNumberText}</strong></td></tr>` : ''}
+                          ${ifscCodeText ? `<tr><td style="font-weight: bold; padding: 1px 0;">IFSC</td><td>: <strong>${ifscCodeText}</strong></td></tr>` : ''}
+                          ${branchNameText ? `<tr><td style="font-weight: bold; padding: 1px 0;">Branch</td><td>: ${branchNameText}</td></tr>` : ''}
+                        </table>
+                      </td>
+                      <td colSpan="1" class="signatory-box" style="padding: 8px 10px; vertical-align: top; text-align: right; height: 110px;">
+                        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                          <div style="font-weight: bold; text-transform: uppercase; font-size: 8.5pt;">For ${companyName}</div>
+                          <div style="font-size: 8pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
+                        </div>
+                      </td>
+                    </tr>
+                  ` : `
+                    <tr style="height: 100px;">
+                      <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 10px; vertical-align: top; text-align: left;">
+                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Declaration</div>
+                        We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
+                      </td>
+                      <td colSpan="2" class="signatory-box" style="padding: 10px; vertical-align: top; text-align: right; height: 100px;">
+                        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                          <div style="font-weight: bold; text-transform: uppercase; font-size: 9pt;">For ${companyName}</div>
+                          <div style="font-size: 8.5pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
+                        </div>
+                      </td>
+                    </tr>
+                  `}
+                </tbody>
+              </table>
                 </tbody>
               </table>
             </div>
@@ -1011,7 +1066,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     </table>
     
     <div class="footer-note">
-      *** Composition dealer is not eligible to collect the taxes on supply. ***
+      ${isInvoice ? '*** This is a Computer Generated Tax Invoice ***' : '*** Composition dealer is not eligible to collect the taxes on supply. ***'}
     </div>
   </div>
 </body>
@@ -1043,7 +1098,12 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       discountAmount: totals.discountAmount,
       totalAmount: totals.discountedTotal,
       date: new Date(invoiceDate),
-      cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`
+      cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`,
+      companyGst: docType === 'Invoice' ? companyGst : '',
+      bankName: docType === 'Invoice' ? bankName : '',
+      accountNumber: docType === 'Invoice' ? accountNumber : '',
+      ifscCode: docType === 'Invoice' ? ifscCode : '',
+      branchName: docType === 'Invoice' ? branchName : ''
     };
 
     handlePrintOrder(activeOrder);
@@ -1278,6 +1338,18 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                     placeholder="Phone number"
                   />
                 </div>
+                {docType === 'Invoice' && (
+                  <div className="text-center small fw-bold text-dark mt-1">
+                    GSTIN : <input
+                      type="text"
+                      className="sheet-input fw-bold text-center d-inline-block text-primary font-monospace"
+                      style={{ width: '200px' }}
+                      value={companyGst}
+                      onChange={e => setCompanyGst(e.target.value)}
+                      placeholder="e.g. 33AAAAA0000A1Z5"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1568,26 +1640,109 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                   </tr>
 
                   {/* Declaration and Signature block */}
-                  <tr>
-                    <td colSpan="3" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '55%' }}>
-                      <div className="fw-bold text-decoration-underline small mb-1">Declaration</div>
-                      <p className="m-0 text-muted" style={{ fontSize: '8pt', lineHeight: '1.4' }}>
-                        We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
-                      </p>
-                    </td>
-                    <td colSpan="2" className="p-3 text-end d-flex flex-column justify-content-between" style={{ minHeight: '100px' }}>
-                      <div className="fw-bold text-uppercase small">For {companyName}</div>
-                      <div className="small text-muted mt-4">Authorised Signatory</div>
-                    </td>
-                    <td className="d-print-none"></td>
-                  </tr>
+                  {docType === 'Invoice' ? (
+                    <tr>
+                      <td colSpan="2" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '38%' }}>
+                        <div className="fw-bold text-decoration-underline small mb-1">Declaration &amp; Disclaimer</div>
+                        <p className="m-0 text-muted mb-2" style={{ fontSize: '7.5pt', lineHeight: '1.35' }}>
+                          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                        </p>
+                        <div className="text-muted" style={{ fontSize: '7pt', lineHeight: '1.3' }}>
+                          * All disputes subject to local jurisdiction.<br/>
+                          * Goods once sold will not be taken back or exchanged.
+                        </div>
+                      </td>
+                      <td colSpan="2" className="p-3 text-start border-right-black bg-light-subtle" style={{ verticalAlign: 'top', width: '37%' }}>
+                        <div className="fw-bold text-decoration-underline small mb-2 d-flex align-items-center justify-content-between">
+                          <span>Bank &amp; GST Details</span>
+                          <span className="badge bg-secondary-subtle text-secondary border fw-normal" style={{ fontSize: '6.5pt' }}>Editable</span>
+                        </div>
+                        <div className="d-flex flex-column gap-1" style={{ fontSize: '8pt' }}>
+                          <div className="d-flex align-items-center">
+                            <span className="fw-bold text-muted" style={{ width: '60px' }}>GSTIN:</span>
+                            <input 
+                              type="text" 
+                              className="sheet-input fw-semibold font-monospace py-0 px-1" 
+                              value={companyGst} 
+                              onChange={e => setCompanyGst(e.target.value)} 
+                              placeholder="GSTIN Number" 
+                              style={{ fontSize: '8pt' }}
+                            />
+                          </div>
+                          <div className="d-flex align-items-center">
+                            <span className="fw-bold text-muted" style={{ width: '60px' }}>Bank:</span>
+                            <input 
+                              type="text" 
+                              className="sheet-input py-0 px-1" 
+                              value={bankName} 
+                              onChange={e => setBankName(e.target.value)} 
+                              placeholder="Bank Name" 
+                              style={{ fontSize: '8pt' }}
+                            />
+                          </div>
+                          <div className="d-flex align-items-center">
+                            <span className="fw-bold text-muted" style={{ width: '60px' }}>A/c No:</span>
+                            <input 
+                              type="text" 
+                              className="sheet-input fw-bold font-monospace py-0 px-1" 
+                              value={accountNumber} 
+                              onChange={e => setAccountNumber(e.target.value)} 
+                              placeholder="Account Number" 
+                              style={{ fontSize: '8pt' }}
+                            />
+                          </div>
+                          <div className="d-flex align-items-center">
+                            <span className="fw-bold text-muted" style={{ width: '60px' }}>IFSC:</span>
+                            <input 
+                              type="text" 
+                              className="sheet-input fw-semibold font-monospace py-0 px-1" 
+                              value={ifscCode} 
+                              onChange={e => setIfscCode(e.target.value)} 
+                              placeholder="IFSC Code" 
+                              style={{ fontSize: '8pt' }}
+                            />
+                          </div>
+                          <div className="d-flex align-items-center">
+                            <span className="fw-bold text-muted" style={{ width: '60px' }}>Branch:</span>
+                            <input 
+                              type="text" 
+                              className="sheet-input py-0 px-1" 
+                              value={branchName} 
+                              onChange={e => setBranchName(e.target.value)} 
+                              placeholder="Branch Name" 
+                              style={{ fontSize: '8pt' }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td colSpan="1" className="p-3 text-end d-flex flex-column justify-content-between" style={{ minHeight: '120px', width: '25%' }}>
+                        <div className="fw-bold text-uppercase small">For {companyName}</div>
+                        <div className="small text-muted mt-4">Authorised Signatory</div>
+                      </td>
+                      <td className="d-print-none"></td>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <td colSpan="3" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '55%' }}>
+                        <div className="fw-bold text-decoration-underline small mb-1">Declaration</div>
+                        <p className="m-0 text-muted" style={{ fontSize: '8pt', lineHeight: '1.4' }}>
+                          We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
+                        </p>
+                      </td>
+                      <td colSpan="2" className="p-3 text-end d-flex flex-column justify-content-between" style={{ minHeight: '100px' }}>
+                        <div className="fw-bold text-uppercase small">For {companyName}</div>
+                        <div className="small text-muted mt-4">Authorised Signatory</div>
+                      </td>
+                      <td className="d-print-none"></td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           <div className="text-center mt-3 small text-muted fw-bold">
-            *** Composition dealer is not eligible to collect the taxes on supply. ***
+            {docType === 'Invoice' ? '*** This is a Computer Generated Tax Invoice ***' : '*** Composition dealer is not eligible to collect the taxes on supply. ***'}
           </div>
           <div className="d-flex justify-content-center gap-2 mt-4 pb-4">
             <button className="btn btn-outline-danger rounded-pill px-4 fw-semibold shadow-sm" onClick={handlePrintCurrentLabel} disabled={billingItems.length === 0}>
