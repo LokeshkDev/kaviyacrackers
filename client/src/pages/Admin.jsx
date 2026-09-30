@@ -876,22 +876,15 @@ const Admin = () => {
       const docNo = cancellation.split(':').pop().trim();
 
       const subtotal = order.subtotalAmount || items.reduce((sum, item) => sum + ((item.originalRate || item.rate || 0) * (item.quantity || 0)), 0);
-      const totalAmount = order.totalAmount || 0;
-      const discountAmount = order.discountAmount !== undefined ? order.discountAmount : Math.max(0, subtotal - totalAmount);
+      const cgstPercent = order.cgstPercent !== undefined ? order.cgstPercent : 9;
+      const sgstPercent = order.sgstPercent !== undefined ? order.sgstPercent : 9;
+      const cgstAmount = order.cgstAmount !== undefined ? order.cgstAmount : ((subtotal * cgstPercent) / 100);
+      const sgstAmount = order.sgstAmount !== undefined ? order.sgstAmount : ((subtotal * sgstPercent) / 100);
+      const invoiceTotal = subtotal + cgstAmount + sgstAmount;
+      const discountAmount = order.discountAmount !== undefined ? order.discountAmount : Math.max(0, subtotal - (order.totalAmount || 0));
       const discountPercent = order.discountPercent !== undefined ? order.discountPercent : (subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0);
+      const finalBillTotal = isInvoice ? (order.totalAmount || invoiceTotal) : (order.totalAmount || (subtotal - discountAmount));
       const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-      const paddingCount = Math.max(0, 11 - items.length);
-      let paddingRowsHtml = '';
-      for (let i = 0; i < paddingCount; i++) {
-        paddingRowsHtml +=
-          '<tr style="height: 35px;">' +
-          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
-          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
-          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
-          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
-          '<td style="border-bottom:1.5px solid #000;"></td></tr>';
-      }
 
       const numberToWords = (num) => {
         if (num === 0) return 'Zero Rupees Only';
@@ -924,110 +917,119 @@ const Admin = () => {
       const htmlContent =
         '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + docTitleLabel + ' - ' + docNo + '</title><style>' +
         '*{margin:0;padding:0;box-sizing:border-box;}' +
-        'body{font-family:Arial,sans-serif;color:#000;background:transparent;padding:20px;font-size:10pt;position:relative;}' +
-        '.print-master-table{width:100%;max-width:800px;margin:0 auto;border-collapse:collapse;border:2.5px solid #000;background:transparent;position:relative;z-index:2;}' +
-        '.bill-sheet{width:100%;max-width:800px;margin:0 auto;background:transparent;}' +
-        '.row-flex{display:flex;}.border-bottom-black{border-bottom:2px solid #000;}.border-right-black{border-right:2px solid #000;}' +
-        '.header-logo{width:25%;display:flex;align-items:center;justify-content:center;min-height:120px;}' +
-        '.header-logo-box{width:85px;height:85px;border:1.5px solid #000;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background-color:#fff;}' +
+        'body{font-family:Arial,sans-serif;color:#000;background:#fff;padding:10px;font-size:9pt;position:relative;}' +
+        '.sheet-container{width:100%;max-width:800px;margin:0 auto;background:#fff;}' +
+        '.bill-sheet{width:100%;border:2px solid #000;background:#fff;box-sizing:border-box;page-break-inside:avoid;break-inside:avoid;}' +
+        '.row-flex{display:flex;}.align-items-center{align-items:center;}.border-bottom-black{border-bottom:2px solid #000;}.border-right-black{border-right:2px solid #000;}' +
+        '.header-logo{width:25%;display:flex;align-items:center;justify-content:center;padding:6px;}' +
+        '.header-logo-box{width:75px;height:75px;border:1.5px solid #000;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;background-color:#fff;}' +
         '.logo-img{width:100%;height:100%;object-fit:contain;}' +
-        '.header-details{width:75%;padding:12px;text-align:center;}' +
-        '.header-details h1{font-size:19pt;font-weight:bold;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.5px;}' +
-        '.header-details p{font-size:9pt;color:#111;line-height:1.4;margin-bottom:2px;}' +
-        '.buyer-box{width:60%;padding:12px;text-align:left;}' +
-        '.meta-box{width:40%;padding:12px;text-align:left;}' +
-        '.box-title{font-weight:bold;border-bottom:1.5px solid #000;padding-bottom:2px;margin-bottom:8px;text-transform:uppercase;font-size:8.5pt;color:#333;}' +
-        '.meta-row{display:flex;align-items:center;margin-bottom:6px;}' +
-        '.meta-label{font-weight:bold;width:110px;font-size:9.5pt;}' +
+        '.header-details{width:75%;padding:6px 12px;text-align:center;}' +
+        '.header-details h1{font-size:17pt;font-weight:bold;text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;}' +
+        '.header-details p{font-size:8.5pt;color:#111;line-height:1.3;margin-bottom:1px;}' +
+        '.buyer-box{width:60%;padding:6px 10px;text-align:left;}' +
+        '.meta-box{width:40%;padding:6px 10px;text-align:left;}' +
+        '.box-title{font-weight:bold;border-bottom:1.5px solid #000;padding-bottom:2px;margin-bottom:4px;text-transform:uppercase;font-size:8pt;color:#333;}' +
+        '.meta-row{display:flex;align-items:center;margin-bottom:4px;}' +
+        '.meta-label{font-weight:bold;width:100px;font-size:8.5pt;}' +
         '.product-table{width:100%;border-collapse:collapse;}' +
-        '.product-table th{border-right:2px solid #000;border-bottom:2px solid #000;padding:8px;font-weight:bold;text-transform:uppercase;font-size:8.5pt;text-align:center;}' +
-        '.product-table td{border-right:2px solid #000;border-bottom:1.5px solid #000;padding:6px 8px;vertical-align:top;font-size:9.5pt;}' +
+        '.product-table th{border-right:2px solid #000;border-bottom:2px solid #000;padding:5px 6px;font-weight:bold;text-transform:uppercase;font-size:8pt;text-align:center;}' +
+        '.product-table td{border-right:2px solid #000;border-bottom:1.5px solid #000;padding:4px 6px;vertical-align:middle;font-size:8.5pt;}' +
         '.product-table th:last-child,.product-table td:last-child{border-right:none;}' +
         '.text-center{text-align:center;}.text-end{text-align:right;}.font-monospace{font-family:monospace;}' +
-        '.totals-row td{border-top:2px solid #000;border-bottom:2px solid #000;font-weight:bold;padding:8px;}' +
-        '.amount-in-words-row td{padding:12px;}' +
-        '.declaration-box{padding:10px;font-size:8pt;line-height:1.4;}' +
-        '.signatory-box{padding:12px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;}' +
-        '.footer-note{text-align:center;font-weight:bold;margin-top:15px;font-size:9pt;}' +
-        '@media print{body{padding:0;}@page{size:A4 portrait;margin:1cm;}.d-print-none{display:none!important;}thead{display:table-header-group;}tbody{display:table-row-group;}}' +
-        '.watermark-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;opacity:0.15;pointer-events:none;z-index:1;display:flex;align-items:center;justify-content:center;}' +
+        '.totals-row td{border-top:2px solid #000;border-bottom:2px solid #000;font-weight:bold;padding:5px 6px;}' +
+        '.amount-in-words-row td{padding:6px 10px;}' +
+        '.declaration-box{padding:6px 8px;font-size:7.5pt;line-height:1.35;}' +
+        '.signatory-box{padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;}' +
+        '.footer-note{text-align:center;font-weight:bold;margin-top:8px;font-size:8pt;}' +
+        '@media print{body{padding:0;background:transparent;}@page{size:A4 portrait;margin:8mm 10mm;}.d-print-none{display:none!important;}.sheet-container{width:100%;max-width:100%;}.bill-sheet{page-break-inside:avoid;break-inside:avoid;}}' +
+        '.watermark-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:280px;height:280px;opacity:0.12;pointer-events:none;z-index:1;display:flex;align-items:center;justify-content:center;}' +
         '.watermark-img{width:100%;height:100%;object-fit:contain;}' +
         '</style></head><body>' +
         '<div class="watermark-container"><img src="' + logoBackgroundUrl + '" class="watermark-img" /></div>' +
-        '<div style="max-width:800px;margin:0 auto;"><table class="print-master-table"><thead><tr><td style="padding:0;border-bottom:2px solid #000;"><div class="bill-sheet">' +
-        '<div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size:11pt;">' + docTitleLabel + '</div>' +
-        '<div class="row-flex align-items-center"><div class="header-logo border-right-black"><div class="header-logo-box"><img src="' + logoUrl + '" class="logo-img" /></div></div>' +
-        '<div class="header-details"><h1>' + companyNameText + '</h1><p>' + companyAddressText + '</p><p style="font-weight:bold;margin-top:2px;">Ph: ' + companyPhoneText + '</p>' +
-        (isInvoice && companyGstText ? '<p style="font-weight:bold;margin-top:3px;font-size:10pt;letter-spacing:0.5px;">GSTIN : <span style="font-family:monospace;">' + companyGstText + '</span></p>' : '') +
-        '</div></div></div></td></tr></thead><tbody><tr><td style="padding:0;"><div class="bill-sheet">' +
-        '<div class="row-flex border-bottom-black" style="min-height:115px;"><div class="buyer-box border-right-black"><div class="box-title">Buyer</div>' +
-        '<p style="font-weight:bold;font-size:10pt;margin-bottom:2px;">' + (order.customerName || 'In-Store Cash Customer') + '</p>' +
-        '<p style="font-size:9pt;color:#222;line-height:1.4;white-space:pre-line;">' + (order.customerAddress || '') + '</p>' +
-        (order.customerPhone ? '<p style="font-size:9pt;margin-top:4px;font-weight:500;">Ph: ' + order.customerPhone + '</p>' : '') + '</div>' +
+        '<div class="sheet-container"><div class="bill-sheet">' +
+        '<div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size:10.5pt;padding:4px 0;">' + docTitleLabel + '</div>' +
+        '<div class="row-flex align-items-center border-bottom-black"><div class="header-logo border-right-black"><div class="header-logo-box"><img src="' + logoUrl + '" class="logo-img" /></div></div>' +
+        '<div class="header-details"><h1>' + companyNameText + '</h1><p>' + companyAddressText + '</p>' +
+        '<div style="font-weight:bold;margin-top:3px;font-size:8.5pt;display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;">' +
+        '<span>Ph: ' + companyPhoneText + '</span>' +
+        (isInvoice && companyGstText ? '<span>|</span><span>GSTIN : <span style="font-family:monospace;">' + companyGstText + '</span></span>' : '') +
+        '</div></div></div>' +
+        '<div class="row-flex border-bottom-black" style="min-height:90px;"><div class="buyer-box border-right-black"><div class="box-title">Buyer</div>' +
+        '<p style="font-weight:bold;font-size:9.5pt;margin-bottom:2px;">' + (order.customerName || 'In-Store Cash Customer') + '</p>' +
+        '<p style="font-size:8.5pt;color:#222;line-height:1.35;white-space:pre-line;">' + (order.customerAddress || '') + '</p>' +
+        (order.customerPhone ? '<p style="font-size:8.5pt;margin-top:3px;font-weight:500;">Ph: ' + order.customerPhone + '</p>' : '') + '</div>' +
         '<div class="meta-box"><div class="meta-row"><span class="meta-label">' + docNoLabel + '</span><span style="font-weight:bold;">: ' + docNo + '</span></div>' +
         '<div class="meta-row"><span class="meta-label">Dated</span><span>: ' + parsedDate + '</span></div></div></div>' +
-        '<table class="product-table" style="width:100%;border-collapse:collapse;border-bottom:none;"><thead><tr class="text-center">' +
-        '<th style="width:50px;">S.No</th><th>Products</th><th style="width:100px;">Qty</th><th style="width:120px;">Rate</th><th style="width:140px;">Amount</th></tr></thead><tbody>' +
+        '<table class="product-table" style="width:100%;border-collapse:collapse;"><thead><tr class="text-center">' +
+        '<th style="width:45px;">S.No</th><th>Products</th><th style="width:90px;">Qty</th><th style="width:110px;">Rate</th><th style="width:130px;">Amount</th></tr></thead><tbody>' +
         items.map((item, idx) =>
-          '<tr><td class="text-center" style="font-weight:bold;color:#555;border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (idx+1) + '</td>' +
+          '<tr><td class="text-center" style="font-weight:bold;color:#333;border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (idx+1) + '</td>' +
           '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"><div style="font-weight:bold;">' + (item.name || 'Product') + '</div>' +
-          (item.content ? '<div style="font-size:8pt;color:#555;font-style:italic;margin-top:2px;">' + item.content + (item.category ? ' (' + item.category + ')' : '') + '</div>' : '') + '</td>' +
+          (item.content ? '<div style="font-size:7.5pt;color:#555;font-style:italic;margin-top:1px;">' + item.content + (item.category ? ' (' + item.category + ')' : '') + '</div>' : '') + '</td>' +
           '<td class="text-center" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.quantity || 0) + ' box</td>' +
           '<td class="text-end font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">₹' + (item.originalRate || item.rate || 0).toFixed(2) + '</td>' +
           '<td class="text-end font-monospace" style="font-weight:bold;border-bottom:1.5px solid #000;">₹' + ((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2) + '</td></tr>'
-        ).join('') + paddingRowsHtml +
+        ).join('') +
         '</tbody>' +
         '<tbody style="page-break-inside:avoid;break-inside:avoid;">' +
         '<tr class="totals-row" style="border-top:2px solid #000;">' +
-        '<td colSpan="2" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Total</td>' +
-        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:8px;">' + totalQty + '</td>' +
-        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;">Sub total</td>' +
-        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:8px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
-        '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discount (' + discountPercent + '%)</td>' +
-        '<td style="border-bottom:1.5px solid #000;text-align:right;color:#d9534f;font-weight:bold;padding:6px 8px;" class="font-monospace">-₹' + discountAmount.toFixed(2) + '</td></tr>' +
-        '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;">Discounted Total</td>' +
-        '<td style="border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:6px 8px;" class="font-monospace">₹' + totalAmount.toFixed(2) + '</td></tr>' +
-        '<tr style="border-bottom:2px solid #000;"><td colSpan="4" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:11pt;padding:6px 8px;">Bill Total</td>' +
-        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:11pt;padding:6px 8px;" class="font-monospace">₹' + totalAmount.toFixed(2) + '</td></tr>' +
-        '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:10px;text-align:left;">' +
-        '<div style="font-size:8.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">Amount Chargeable (in words):</div>' +
-        '<div style="font-weight:bold;font-size:9.5pt;">' + numberToWords(totalAmount) + '</div>' +
-        '<div style="text-align:right;font-size:8.5pt;color:#555;font-style:italic;margin-top:-10px;">E. &amp; O.E</div></td></tr>' +
+        '<td colSpan="2" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Total</td>' +
+        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:5px 6px;">' + totalQty + '</td>' +
+        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Sub total</td>' +
+        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
+        (isInvoice ?
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">CGST (' + cgstPercent + '%)</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#0d6efd;font-weight:bold;padding:4px 6px;" class="font-monospace">+₹' + cgstAmount.toFixed(2) + '</td></tr>' +
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">SGST (' + sgstPercent + '%)</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#0d6efd;font-weight:bold;padding:4px 6px;" class="font-monospace">+₹' + sgstAmount.toFixed(2) + '</td></tr>'
+        :
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discount (' + discountPercent + '%)</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#d9534f;font-weight:bold;padding:4px 6px;" class="font-monospace">-₹' + discountAmount.toFixed(2) + '</td></tr>' +
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discounted Total</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;" class="font-monospace">₹' + (subtotal - discountAmount).toFixed(2) + '</td></tr>'
+        ) +
+        '<tr style="border-bottom:2px solid #000;"><td colSpan="4" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;">Bill Total</td>' +
+        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;" class="font-monospace">₹' + finalBillTotal.toFixed(2) + '</td></tr>' +
+        '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:6px 10px;text-align:left;">' +
+        '<div style="font-size:7.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Amount Chargeable (in words):</div>' +
+        '<div style="font-weight:bold;font-size:8.5pt;">' + numberToWords(finalBillTotal) + '</div>' +
+        '<div style="text-align:right;font-size:7.5pt;color:#555;font-style:italic;margin-top:-8px;">E. &amp; O.E</div></td></tr>' +
         (isInvoice ? 
-          '<tr style="height:110px;">' +
-          '<td colSpan="2" class="declaration-box" style="border-right:2px solid #000;padding:8px 10px;vertical-align:top;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:3px;font-size:8.5pt;">Declaration &amp; Disclaimer</div>' +
-            '<p style="font-size:7.5pt;line-height:1.35;color:#111;margin-bottom:4px;">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>' +
-            '<div style="font-size:7pt;color:#444;line-height:1.3;">* All disputes subject to local jurisdiction.<br/>* Goods once sold will not be taken back or exchanged.</div>' +
+          '<tr style="height:90px;">' +
+          '<td colSpan="2" class="declaration-box" style="border-right:2px solid #000;padding:6px 8px;vertical-align:top;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;font-size:7.5pt;">Declaration &amp; Disclaimer</div>' +
+            '<p style="font-size:6.5pt;line-height:1.3;color:#111;margin-bottom:2px;">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>' +
+            '<div style="font-size:6pt;color:#444;line-height:1.25;">* All disputes subject to local jurisdiction.<br/>* Goods once sold will not be taken back or exchanged.</div>' +
           '</td>' +
-          '<td colSpan="2" style="border-right:2px solid #000;padding:8px 10px;vertical-align:top;font-size:8pt;line-height:1.45;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:4px;font-size:8.5pt;">Bank &amp; GST Details</div>' +
-            '<table style="width:100%;font-size:8pt;border-collapse:collapse;">' +
-              (companyGstText ? '<tr><td style="font-weight:bold;width:65px;padding:1px 0;">GSTIN</td><td>: <strong>' + companyGstText + '</strong></td></tr>' : '') +
-              (bankNameText ? '<tr><td style="font-weight:bold;width:65px;padding:1px 0;">Bank</td><td>: ' + bankNameText + '</td></tr>' : '') +
+          '<td colSpan="2" style="border-right:2px solid #000;padding:5px 8px;vertical-align:top;font-size:7.5pt;line-height:1.35;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;font-size:7.5pt;">Bank &amp; GST Details</div>' +
+            '<table style="width:100%;font-size:7.5pt;border-collapse:collapse;">' +
+              (companyGstText ? '<tr><td style="font-weight:bold;width:55px;padding:1px 0;">GSTIN</td><td>: <strong>' + companyGstText + '</strong></td></tr>' : '') +
+              (bankNameText ? '<tr><td style="font-weight:bold;width:55px;padding:1px 0;">Bank</td><td>: ' + bankNameText + '</td></tr>' : '') +
               (accountNumberText ? '<tr><td style="font-weight:bold;padding:1px 0;">A/c No</td><td>: <strong>' + accountNumberText + '</strong></td></tr>' : '') +
               (ifscCodeText ? '<tr><td style="font-weight:bold;padding:1px 0;">IFSC</td><td>: <strong>' + ifscCodeText + '</strong></td></tr>' : '') +
               (branchNameText ? '<tr><td style="font-weight:bold;padding:1px 0;">Branch</td><td>: ' + branchNameText + '</td></tr>' : '') +
             '</table>' +
           '</td>' +
-          '<td colSpan="1" class="signatory-box" style="padding:8px 10px;vertical-align:top;text-align:right;height:110px;">' +
+          '<td colSpan="1" class="signatory-box" style="padding:6px 8px;vertical-align:top;text-align:right;height:90px;">' +
             '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
-              '<div style="font-weight:bold;text-transform:uppercase;font-size:8.5pt;">For ' + companyNameText + '</div>' +
-              '<div style="font-size:8pt;color:#444;margin-top:45px;">Authorised Signatory</div>' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:7.5pt;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:7pt;color:#444;margin-top:30px;">Authorised Signatory</div>' +
             '</div>' +
           '</td></tr>'
         : 
-          '<tr style="height:100px;">' +
-          '<td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:10px;vertical-align:top;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:4px;">Declaration</div>We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</td>' +
-          '<td colSpan="2" class="signatory-box" style="padding:10px;vertical-align:top;text-align:right;height:100px;">' +
+          '<tr style="height:80px;">' +
+          '<td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:6px 8px;vertical-align:top;text-align:left;">' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;">Declaration</div><div style="font-size:7.5pt;line-height:1.3;">We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</div></td>' +
+          '<td colSpan="2" class="signatory-box" style="padding:6px 8px;vertical-align:top;text-align:right;height:80px;">' +
             '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
-              '<div style="font-weight:bold;text-transform:uppercase;font-size:9pt;">For ' + companyNameText + '</div>' +
-              '<div style="font-size:8.5pt;color:#444;margin-top:45px;">Authorised Signatory</div>' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:8pt;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:7.5pt;color:#444;margin-top:30px;">Authorised Signatory</div>' +
             '</div>' +
           '</td></tr>'
         ) +
-        '</tbody></table></div></td></tr></tbody></table>' +
+        '</tbody></table></div>' +
         '<div class="footer-note">' + (isInvoice ? '*** This is a Computer Generated Tax Invoice ***' : '*** Composition dealer is not eligible to collect the taxes on supply. ***') + '</div></div></body></html>';
 
       printWindow.document.write(htmlContent);

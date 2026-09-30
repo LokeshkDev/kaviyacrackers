@@ -82,7 +82,9 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
 
   // Billing Items: starts with one empty row
   const [billingItems, setBillingItems] = useState([createEmptyRow()]);
-  const [discountPercent, setDiscountPercent] = useState(80); // Default to 80% off
+  const [discountPercent, setDiscountPercent] = useState(80); // Default to 80% off for Estimate
+  const [cgstPercent, setCgstPercent] = useState(9); // Default 9% CGST for Invoice
+  const [sgstPercent, setSgstPercent] = useState(9); // Default 9% SGST for Invoice
 
   // Autocomplete tracking
   const [activeRowIndex, setActiveRowIndex] = useState(null);
@@ -107,19 +109,81 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   const [saveStatus, setSaveStatus] = useState(null); // 'saving', 'success', 'error'
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Sync settings when loaded
+  // Bank & GST Details persistence state
+  const [bankSaveStatus, setBankSaveStatus] = useState(null); // 'saving', 'saved', 'error'
+  const [isBankDetailsEditable, setIsBankDetailsEditable] = useState(false);
+
+  // Sync settings when loaded or fallback to localStorage
   useEffect(() => {
+    let localBank = null;
+    try {
+      const stored = localStorage.getItem('kaviya_billing_bank_details');
+      if (stored) localBank = JSON.parse(stored);
+    } catch (_) {}
+
+    const gst = settings?.gstNumber || localBank?.gstNumber || '';
+    const bank = settings?.bankName || localBank?.bankName || '';
+    const acc = settings?.accountNumber || localBank?.accountNumber || '';
+    const ifsc = settings?.ifscCode || localBank?.ifscCode || '';
+    const branch = settings?.branchName || localBank?.branchName || '';
+
     if (settings) {
       if (settings.companyName) setCompanyName(settings.companyName);
       if (settings.address) setCompanyAddress(settings.address);
       if (settings.phone) setCompanyPhone(settings.phone);
-      if (settings.gstNumber) setCompanyGst(settings.gstNumber);
-      if (settings.bankName) setBankName(settings.bankName);
-      if (settings.accountNumber) setAccountNumber(settings.accountNumber);
-      if (settings.ifscCode) setIfscCode(settings.ifscCode);
-      if (settings.branchName) setBranchName(settings.branchName);
+    }
+
+    if (gst) setCompanyGst(gst);
+    if (bank) setBankName(bank);
+    if (acc) setAccountNumber(acc);
+    if (ifsc) setIfscCode(ifsc);
+    if (branch) setBranchName(branch);
+
+    // If no details exist, leave in editable mode
+    if (!gst && !bank && !acc) {
+      setIsBankDetailsEditable(true);
     }
   }, [settings]);
+
+  // Save GST and Bank Details to Database settings & localStorage
+  const handleSaveBankDetails = async () => {
+    setBankSaveStatus('saving');
+    try {
+      const bankData = {
+        gstNumber: companyGst.trim(),
+        bankName: bankName.trim(),
+        accountNumber: accountNumber.trim(),
+        ifscCode: ifscCode.trim(),
+        branchName: branchName.trim()
+      };
+      localStorage.setItem('kaviya_billing_bank_details', JSON.stringify(bankData));
+
+      const updatedSettings = {
+        ...(settings || {}),
+        companyName: companyName.trim() || settings?.companyName || 'KAVIYA CRACKERS',
+        address: companyAddress.trim() || settings?.address,
+        phone: companyPhone.trim() || settings?.phone,
+        gstNumber: companyGst.trim(),
+        bankName: bankName.trim(),
+        accountNumber: accountNumber.trim(),
+        ifscCode: ifscCode.trim(),
+        branchName: branchName.trim()
+      };
+
+      await api.post('/data', { settings: updatedSettings });
+      if (loadData) loadData();
+
+      setBankSaveStatus('saved');
+      setIsBankDetailsEditable(false);
+      setTimeout(() => setBankSaveStatus(null), 3000);
+    } catch (err) {
+      console.error('Failed to save bank & GST details:', err);
+      // Saved locally even if network has issue
+      setBankSaveStatus('saved');
+      setIsBankDetailsEditable(false);
+      setTimeout(() => setBankSaveStatus(null), 3000);
+    }
+  };
 
   // Generate default Invoice/Estimate format once on mount
   useEffect(() => {
@@ -228,22 +292,52 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         filteredProducts.length > 0 ? (prev - 1 + filteredProducts.length) % filteredProducts.length : 0
       );
     } else if (e.key === 'Enter') {
-      if (showDropdown && filteredProducts[selectedAutocompleteIndex]) {
+      if (showDropdown && filteredProducts.length > 0 && selectedAutocompleteIndex >= 0 && selectedAutocompleteIndex < filteredProducts.length) {
         e.preventDefault();
         handleSelectProduct(index, filteredProducts[selectedAutocompleteIndex]);
       } else {
-        // Normal tab/enter behavior: focus quantity input
-        const qtyInput = document.getElementById(`qty-${index}`);
-        if (qtyInput) {
-          e.preventDefault();
-          qtyInput.focus();
-          qtyInput.select();
-        }
+        e.preventDefault();
+        handleSelectCustomProduct(index);
       }
     } else if (e.key === 'Escape') {
       setShowDropdown(false);
       setActiveRowIndex(null);
     }
+  };
+
+  // Select typed text as custom manual product
+  const handleSelectCustomProduct = (index) => {
+    setBillingItems(prev => {
+      const updated = [...prev];
+      updated[index].isCustom = true;
+      if (!updated[index].quantity) updated[index].quantity = 1;
+      return updated;
+    });
+
+    setShowDropdown(false);
+    setActiveRowIndex(null);
+
+    // Focus rate or quantity input
+    setTimeout(() => {
+      const rateInput = document.getElementById(`rate-${index}`);
+      const qtyInput = document.getElementById(`qty-${index}`);
+      if (!billingItems[index]?.originalRate && rateInput) {
+        rateInput.focus();
+        rateInput.select();
+      } else if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.select();
+      }
+    }, 50);
+  };
+
+  // Update item description / content for manual or custom products
+  const handleContentChange = (index, contentVal) => {
+    setBillingItems(prev => {
+      const updated = [...prev];
+      updated[index].content = contentVal;
+      return updated;
+    });
   };
 
   // Autocomplete Select Product
@@ -317,7 +411,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       const parsedRate = parseFloat(rateVal);
       updated[index].originalRate = rateVal === '' ? '' : (isNaN(parsedRate) ? 0 : parsedRate);
       
-      const qtyVal = parseInt(updated[index].quantity, 10) || 0;
+      const parsedQty = parseInt(updated[index].quantity, 10);
+      const qtyVal = isNaN(parsedQty) ? (updated[index].name ? 1 : 0) : parsedQty;
+      if (isNaN(parsedQty) && updated[index].name) {
+        updated[index].quantity = 1;
+      }
       updated[index].amount = qtyVal * (updated[index].originalRate || 0);
       return updated;
     });
@@ -359,13 +457,27 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     const discountAmount = subtotal * (discountPercent / 100);
     const discountedTotal = Math.round(subtotal - discountAmount);
 
+    const cgstPct = parseFloat(cgstPercent) || 0;
+    const sgstPct = parseFloat(sgstPercent) || 0;
+    const cgstAmount = (subtotal * cgstPct) / 100;
+    const sgstAmount = (subtotal * sgstPct) / 100;
+    const invoiceTotal = subtotal + cgstAmount + sgstAmount;
+
+    const billTotal = docType === 'Invoice' ? invoiceTotal : discountedTotal;
+
     return {
       totalQty,
       subtotal,
       discountAmount,
-      discountedTotal
+      discountedTotal,
+      cgstPercent: cgstPct,
+      sgstPercent: sgstPct,
+      cgstAmount,
+      sgstAmount,
+      invoiceTotal,
+      billTotal
     };
-  }, [activeBillingItems, discountPercent]);
+  }, [activeBillingItems, discountPercent, cgstPercent, sgstPercent, docType]);
 
   // Reset form
   const handleReset = () => {
@@ -376,6 +488,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     });
     setBillingItems([createEmptyRow()]);
     setDiscountPercent(80);
+    setCgstPercent(9);
+    setSgstPercent(9);
     generateDocNumber(docType);
     setErrorMessage('');
     setSaveStatus(null);
@@ -401,7 +515,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       const orderItems = activeBillingItems.map(item => {
         const qty = parseInt(item.quantity, 10) || 0;
         const mrp = parseFloat(item.originalRate) || 0;
-        const itemOfferRate = mrp * (1 - discountPercent / 100);
+        const itemOfferRate = docType === 'Invoice' ? mrp : mrp * (1 - discountPercent / 100);
         return {
           productId: item.id || null,
           name: item.name,
@@ -422,9 +536,13 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         customerAddress: customer.address.trim(),
         items: orderItems,
         subtotalAmount: totals.subtotal,
-        discountPercent: discountPercent,
-        discountAmount: totals.discountAmount,
-        totalAmount: totals.discountedTotal,
+        discountPercent: docType === 'Invoice' ? 0 : discountPercent,
+        discountAmount: docType === 'Invoice' ? 0 : totals.discountAmount,
+        cgstPercent: docType === 'Invoice' ? (parseFloat(cgstPercent) || 0) : 0,
+        cgstAmount: docType === 'Invoice' ? totals.cgstAmount : 0,
+        sgstPercent: docType === 'Invoice' ? (parseFloat(sgstPercent) || 0) : 0,
+        sgstAmount: docType === 'Invoice' ? totals.sgstAmount : 0,
+        totalAmount: totals.billTotal,
         status: 'Completed',
         date: new Date(invoiceDate),
         cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`,
@@ -758,10 +876,10 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         sku: item.code || `SKU-${item.id}`,
         name: item.name,
         content: item.content,
-        qty: item.qty,
+        qty: item.quantity || item.qty || 1,
         rate: item.originalRate || item.rate,
       })),
-      totalAmount: grandTotal
+      totalAmount: totals.billTotal
     };
     openLabelModal(orderObj);
   };
@@ -813,25 +931,20 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
 
     const items = order.items || [];
     const subtotal = order.subtotalAmount || items.reduce((sum, item) => sum + ((item.originalRate || item.rate || 0) * (item.quantity || 0)), 0);
-    const totalAmount = order.totalAmount || 0;
-    const discountAmount = order.discountAmount !== undefined ? order.discountAmount : Math.max(0, subtotal - totalAmount);
-    const discountPct = order.discountPercent !== undefined ? order.discountPercent : (subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0);
-    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-    const minRows = 11;
-    const paddingCount = Math.max(0, minRows - items.length);
-    let paddingHtml = '';
-    for (let i = 0; i < paddingCount; i++) {
-      paddingHtml += `
-        <tr style="height: 35px;">
-          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
-          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
-          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
-          <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
-          <td style="border-bottom: 1.5px solid #000;"></td>
-        </tr>
-      `;
-    }
+    const cgstPct = order.cgstPercent !== undefined ? order.cgstPercent : (parseFloat(cgstPercent) || 0);
+    const sgstPct = order.sgstPercent !== undefined ? order.sgstPercent : (parseFloat(sgstPercent) || 0);
+    const cgstAmt = order.cgstAmount !== undefined ? order.cgstAmount : ((subtotal * cgstPct) / 100);
+    const sgstAmt = order.sgstAmount !== undefined ? order.sgstAmount : ((subtotal * sgstPct) / 100);
+
+    const discountAmount = order.discountAmount !== undefined ? order.discountAmount : Math.max(0, subtotal - (order.totalAmount || 0));
+    const discountPct = order.discountPercent !== undefined ? order.discountPercent : (subtotal > 0 ? Math.round((discountAmount / subtotal) * 100) : 0);
+
+    const totalAmount = order.totalAmount !== undefined && order.totalAmount > 0
+      ? order.totalAmount
+      : (isInvoice ? (subtotal + cgstAmt + sgstAmt) : Math.max(0, subtotal - discountAmount));
+
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -841,50 +954,86 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   <title>${docTitleLabel} - ${docNo}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; color: #000; background: transparent; padding: 20px; font-size: 10pt; position: relative; }
-    .print-master-table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; border: 2.5px solid #000; background: transparent; position: relative; z-index: 2; }
-    .bill-sheet { width: 100%; max-width: 800px; margin: 0 auto; background: transparent; }
+    body {
+      font-family: Arial, sans-serif;
+      color: #000;
+      background: #fff;
+      padding: 10px;
+      font-size: 9pt;
+      position: relative;
+    }
+    .sheet-container {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+    }
+    .bill-sheet {
+      width: 100%;
+      border: 2px solid #000;
+      background: #fff;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     .row-flex { display: flex; }
+    .align-items-center { align-items: center; }
     .border-bottom-black { border-bottom: 2px solid #000; }
     .border-right-black { border-right: 2px solid #000; }
-    .header-logo { width: 25%; display: flex; align-items: center; justify-content: center; min-height: 120px; }
-    .header-logo-box { width: 85px; height: 85px; border: 1.5px solid #000; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #fff; }
+    .header-logo {
+      width: 25%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+    .header-logo-box {
+      width: 75px;
+      height: 75px;
+      border: 1.5px solid #000;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background-color: #fff;
+    }
     .logo-img { width: 100%; height: 100%; object-fit: contain; }
-    .header-details { width: 75%; padding: 12px; text-align: center; }
-    .header-details h1 { font-size: 19pt; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px; }
-    .header-details p { font-size: 9pt; color: #111; line-height: 1.4; margin-bottom: 2px; }
-    .buyer-box { width: 60%; padding: 12px; text-align: left; }
-    .meta-box { width: 40%; padding: 12px; text-align: left; }
-    .box-title { font-weight: bold; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 8px; text-transform: uppercase; font-size: 8.5pt; color: #333; }
-    .meta-row { display: flex; align-items: center; margin-bottom: 6px; }
-    .meta-label { font-weight: bold; width: 110px; font-size: 9.5pt; }
+    .header-details { width: 75%; padding: 6px 12px; text-align: center; }
+    .header-details h1 { font-size: 17pt; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.5px; }
+    .header-details p { font-size: 8.5pt; color: #111; line-height: 1.3; margin-bottom: 1px; }
+    .buyer-box { width: 60%; padding: 6px 10px; text-align: left; }
+    .meta-box { width: 40%; padding: 6px 10px; text-align: left; }
+    .box-title { font-weight: bold; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 4px; text-transform: uppercase; font-size: 8pt; color: #333; }
+    .meta-row { display: flex; align-items: center; margin-bottom: 4px; }
+    .meta-label { font-weight: bold; width: 100px; font-size: 8.5pt; }
     .product-table { width: 100%; border-collapse: collapse; }
-    .product-table th { border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px; font-weight: bold; text-transform: uppercase; font-size: 8.5pt; text-align: center; }
-    .product-table td { border-right: 2px solid #000; border-bottom: 1.5px solid #000; padding: 6px 8px; vertical-align: top; font-size: 9.5pt; }
+    .product-table th { border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 5px 6px; font-weight: bold; text-transform: uppercase; font-size: 8pt; text-align: center; }
+    .product-table td { border-right: 2px solid #000; border-bottom: 1.5px solid #000; padding: 4px 6px; vertical-align: middle; font-size: 8.5pt; }
     .product-table th:last-child, .product-table td:last-child { border-right: none; }
     .text-center { text-align: center; }
     .text-end { text-align: right; }
     .font-monospace { font-family: monospace; }
-    .totals-row td { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; padding: 8px; }
-    .amount-in-words-row td { padding: 12px; }
-    .declaration-box { padding: 10px; font-size: 8pt; line-height: 1.4; }
-    .signatory-box { padding: 12px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
-    .footer-note { text-align: center; font-weight: bold; margin-top: 15px; font-size: 9pt; }
+    .totals-row td { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; padding: 5px 6px; }
+    .amount-in-words-row td { padding: 6px 10px; }
+    .declaration-box { padding: 6px 8px; font-size: 7.5pt; line-height: 1.35; }
+    .signatory-box { padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
+    .footer-note { text-align: center; font-weight: bold; margin-top: 8px; font-size: 8pt; }
     @media print {
-      body { padding: 0; }
-      @page { size: A4 portrait; margin: 1cm; }
+      body { padding: 0; background: transparent; }
+      @page { size: A4 portrait; margin: 8mm 10mm; }
       .d-print-none { display: none !important; }
-      thead { display: table-header-group; }
-      tbody { display: table-row-group; }
+      .sheet-container { width: 100%; max-width: 100%; }
+      .bill-sheet { page-break-inside: avoid; break-inside: avoid; }
     }
     .watermark-container {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 300px;
-      height: 300px;
-      opacity: 0.15;
+      width: 280px;
+      height: 280px;
+      opacity: 0.12;
       pointer-events: none;
       z-index: 1;
       display: flex;
@@ -902,168 +1051,163 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   <div class="watermark-container">
     <img src="${logoBackgroundUrl}" class="watermark-img" />
   </div>
-  <div style="max-width: 800px; margin: 0 auto;">
-    <table class="print-master-table">
-      <!-- Repeating Header -->
-      <thead>
-        <tr>
-          <td style="padding: 0; border-bottom: 2px solid #000;">
-            <div class="bill-sheet">
-              <div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size: 11pt;">
-                ${docTitleLabel}
-              </div>
-              <div class="row-flex align-items-center">
-                <div class="header-logo border-right-black">
-                  <div class="header-logo-box">
-                    <img src="${logoUrl}" class="logo-img" />
-                  </div>
-                </div>
-                <div class="header-details">
-                  <h1>${companyName}</h1>
-                  <p>${companyAddress}</p>
-                  <p style="font-weight: bold; margin-top: 2px;">Ph: ${companyPhone}</p>
-                  ${isInvoice && companyGstText ? `<p style="font-weight: bold; margin-top: 3px; font-size: 10pt; letter-spacing: 0.5px;">GSTIN : <span style="font-family: monospace;">${companyGstText}</span></p>` : ''}
-                </div>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </thead>
-      
-      <!-- Flowable body -->
-      <tbody>
-        <tr>
-          <td style="padding: 0;">
-            <div class="bill-sheet">
-              <div class="row-flex border-bottom-black" style="min-height: 115px;">
-                <div class="buyer-box border-right-black">
-                  <div class="box-title">Buyer</div>
-                  <p style="font-weight: bold; font-size: 10pt; margin-bottom: 2px;">${order.customerName || 'In-Store Cash Customer'}</p>
-                  <p style="font-size: 9pt; color: #222; line-height: 1.4; white-space: pre-line;">${order.customerAddress || ''}</p>
-                  ${order.customerPhone ? `<p style="font-size: 9pt; margin-top: 4px; font-weight: 500;">Ph: ${order.customerPhone}</p>` : ''}
-                </div>
-                <div class="meta-box">
-                  <div class="meta-row">
-                    <span class="meta-label">${docNoLabel}</span>
-                    <span style="font-weight: bold;">: ${docNo}</span>
-                  </div>
-                  <div class="meta-row">
-                    <span class="meta-label">Dated</span>
-                    <span>: ${parsedDate}</span>
-                  </div>
-                </div>
-              </div>
+  <div class="sheet-container">
+    <div class="bill-sheet">
+      <!-- Document Header -->
+      <div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size: 10.5pt; padding: 4px 0;">
+        ${docTitleLabel}
+      </div>
+      <div class="row-flex align-items-center border-bottom-black">
+        <div class="header-logo border-right-black">
+          <div class="header-logo-box">
+            <img src="${logoUrl}" class="logo-img" />
+          </div>
+        </div>
+        <div class="header-details">
+          <h1>${companyName}</h1>
+          <p>${companyAddress}</p>
+          <div style="font-weight: bold; margin-top: 3px; font-size: 8.5pt; display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <span>Ph: ${companyPhone}</span>
+            ${isInvoice && companyGstText ? `<span>|</span><span>GSTIN : <span style="font-family: monospace;">${companyGstText}</span></span>` : ''}
+          </div>
+        </div>
+      </div>
 
-              <table class="product-table" style="width: 100%; border-collapse: collapse; border-bottom: none;">
-                <thead>
-                  <tr class="text-center">
-                    <th style="width: 50px;">S.No</th>
-                    <th>Products</th>
-                    <th style="width: 100px;">Qty</th>
-                    <th style="width: 120px;">Rate</th>
-                    <th style="width: 140px;">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${items.map((item, idx) => `
-                    <tr>
-                      <td class="text-center" style="font-weight: bold; color: #333; border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${idx + 1}</td>
-                      <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">
-                        <div style="font-weight: bold;">${item.name || 'Product'}</div>
-                        ${item.content ? `<div style="font-size: 8pt; color: #555; font-style: italic; margin-top: 2px;">${item.content} ${item.category ? `(${item.category})` : ''}</div>` : ''}
-                      </td>
-                      <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.quantity || 0} box</td>
-                      <td class="text-end font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">₹${(item.originalRate || item.rate || 0).toFixed(2)}</td>
-                      <td class="text-end font-monospace" style="font-weight: bold; border-bottom: 1.5px solid #000;">₹${((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2)}</td>
-                    </tr>
-                  `).join('')}
-                  
-                  ${paddingHtml}
-                </tbody>
+      <!-- Buyer & Meta Details -->
+      <div class="row-flex border-bottom-black" style="min-height: 90px;">
+        <div class="buyer-box border-right-black">
+          <div class="box-title">Buyer</div>
+          <p style="font-weight: bold; font-size: 9.5pt; margin-bottom: 2px;">${order.customerName || 'In-Store Cash Customer'}</p>
+          <p style="font-size: 8.5pt; color: #222; line-height: 1.35; white-space: pre-line;">${order.customerAddress || ''}</p>
+          ${order.customerPhone ? `<p style="font-size: 8.5pt; margin-top: 3px; font-weight: 500;">Ph: ${order.customerPhone}</p>` : ''}
+        </div>
+        <div class="meta-box">
+          <div class="meta-row">
+            <span class="meta-label">${docNoLabel}</span>
+            <span style="font-weight: bold;">: ${docNo}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Dated</span>
+            <span>: ${parsedDate}</span>
+          </div>
+        </div>
+      </div>
 
-                <tbody style="page-break-inside: avoid; break-inside: avoid;">
-                  <tr class="totals-row" style="border-top: 2px solid #000;">
-                    <td colSpan="2" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Total</td>
-                    <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 8px;">${totalQty}</td>
-                    <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;">Sub total</td>
-                    <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 8px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
-                  </tr>
-                  
-                  <tr>
-                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discount (${discountPct}%)</td>
-                    <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 6px 8px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
-                  </tr>
-                  
-                  <tr>
-                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">Discounted Total</td>
-                    <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
-                  </tr>
-                  
-                  <tr style="border-bottom: 2px solid #000;">
-                    <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 11pt; padding: 6px 8px;">Bill Total</td>
-                    <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 11pt; padding: 6px 8px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
-                  </tr>
+      <!-- Product Table -->
+      <table class="product-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr class="text-center">
+            <th style="width: 45px;">S.No</th>
+            <th>Products</th>
+            <th style="width: 90px;">Qty</th>
+            <th style="width: 110px;">Rate</th>
+            <th style="width: 130px;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((item, idx) => `
+            <tr>
+              <td class="text-center" style="font-weight: bold; color: #333; border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${idx + 1}</td>
+              <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">
+                <div style="font-weight: bold;">${item.name || 'Product'}</div>
+                ${item.content ? `<div style="font-size: 7.5pt; color: #555; font-style: italic; margin-top: 1px;">${item.content} ${item.category ? `(${item.category})` : ''}</div>` : ''}
+              </td>
+              <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.quantity || 0} box</td>
+              <td class="text-end font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">₹${(item.originalRate || item.rate || 0).toFixed(2)}</td>
+              <td class="text-end font-monospace" style="font-weight: bold; border-bottom: 1.5px solid #000;">₹${((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
 
-                  <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
-                    <td colSpan="5" style="border-bottom: 2px solid #000; padding: 10px; text-align: left;">
-                      <div style="font-size: 8.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Amount Chargeable (in words):</div>
-                      <div style="font-weight: bold; font-size: 9.5pt;">${numberToWords(totalAmount)}</div>
-                      <div style="text-align: right; font-size: 8.5pt; color: #555; font-style: italic; margin-top: -10px;">E. &amp; O.E</div>
-                    </td>
-                  </tr>
+        <tbody style="page-break-inside: avoid; break-inside: avoid;">
+          <tr class="totals-row" style="border-top: 2px solid #000;">
+            <td colSpan="2" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Total</td>
+            <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 5px 6px;">${totalQty}</td>
+            <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Sub total</td>
+            <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
+          </tr>
+          
+          ${isInvoice ? `
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">CGST (${cgstPct}%)</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; color: #0d6efd; font-weight: bold; padding: 4px 6px;" class="font-monospace">+₹${cgstAmt.toFixed(2)}</td>
+            </tr>
+            
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">SGST (${sgstPct}%)</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; color: #0d6efd; font-weight: bold; padding: 4px 6px;" class="font-monospace">+₹${sgstAmt.toFixed(2)}</td>
+            </tr>
+          ` : `
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discount (${discountPct}%)</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 4px 6px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
+            </tr>
+            
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discounted Total</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+            </tr>
+          `}
+          
+          <tr style="border-bottom: 2px solid #000;">
+            <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;">Bill Total</td>
+            <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+          </tr>
 
-                  ${isInvoice ? `
-                    <tr style="height: 110px;">
-                      <td colSpan="2" class="declaration-box" style="border-right: 2px solid #000; padding: 8px 10px; vertical-align: top; text-align: left;">
-                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 3px; font-size: 8.5pt;">Declaration &amp; Disclaimer</div>
-                        <p style="font-size: 7.5pt; line-height: 1.35; color: #111; margin-bottom: 4px;">
-                          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-                        </p>
-                        <div style="font-size: 7pt; color: #444; line-height: 1.3;">
-                          * All disputes subject to local jurisdiction.<br/>
-                          * Goods once sold will not be taken back or exchanged.
-                        </div>
-                      </td>
-                      <td colSpan="2" style="border-right: 2px solid #000; padding: 8px 10px; vertical-align: top; font-size: 8pt; line-height: 1.45; text-align: left;">
-                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px; font-size: 8.5pt;">Bank &amp; GST Details</div>
-                        <table style="width: 100%; font-size: 8pt; border-collapse: collapse;">
-                          ${companyGstText ? `<tr><td style="font-weight: bold; width: 65px; padding: 1px 0;">GSTIN</td><td>: <strong>${companyGstText}</strong></td></tr>` : ''}
-                          ${bankNameText ? `<tr><td style="font-weight: bold; width: 65px; padding: 1px 0;">Bank</td><td>: ${bankNameText}</td></tr>` : ''}
-                          ${accountNumberText ? `<tr><td style="font-weight: bold; padding: 1px 0;">A/c No</td><td>: <strong>${accountNumberText}</strong></td></tr>` : ''}
-                          ${ifscCodeText ? `<tr><td style="font-weight: bold; padding: 1px 0;">IFSC</td><td>: <strong>${ifscCodeText}</strong></td></tr>` : ''}
-                          ${branchNameText ? `<tr><td style="font-weight: bold; padding: 1px 0;">Branch</td><td>: ${branchNameText}</td></tr>` : ''}
-                        </table>
-                      </td>
-                      <td colSpan="1" class="signatory-box" style="padding: 8px 10px; vertical-align: top; text-align: right; height: 110px;">
-                        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-                          <div style="font-weight: bold; text-transform: uppercase; font-size: 8.5pt;">For ${companyName}</div>
-                          <div style="font-size: 8pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
-                        </div>
-                      </td>
-                    </tr>
-                  ` : `
-                    <tr style="height: 100px;">
-                      <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 10px; vertical-align: top; text-align: left;">
-                        <div style="font-weight: bold; text-decoration: underline; margin-bottom: 4px;">Declaration</div>
-                        We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
-                      </td>
-                      <td colSpan="2" class="signatory-box" style="padding: 10px; vertical-align: top; text-align: right; height: 100px;">
-                        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-                          <div style="font-weight: bold; text-transform: uppercase; font-size: 9pt;">For ${companyName}</div>
-                          <div style="font-size: 8.5pt; color: #444; margin-top: 45px;">Authorised Signatory</div>
-                        </div>
-                      </td>
-                    </tr>
-                  `}
-                </tbody>
-              </table>
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
+            <td colSpan="5" style="border-bottom: 2px solid #000; padding: 6px 10px; text-align: left;">
+              <div style="font-size: 7.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Amount Chargeable (in words):</div>
+              <div style="font-weight: bold; font-size: 8.5pt;">${numberToWords(totalAmount)}</div>
+              <div style="text-align: right; font-size: 7.5pt; color: #555; font-style: italic; margin-top: -8px;">E. &amp; O.E</div>
+            </td>
+          </tr>
+
+          ${isInvoice ? `
+            <tr style="height: 90px;">
+              <td colSpan="2" class="declaration-box" style="border-right: 2px solid #000; padding: 6px 8px; vertical-align: top; text-align: left;">
+                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px; font-size: 7.5pt;">Declaration &amp; Disclaimer</div>
+                <p style="font-size: 6.5pt; line-height: 1.3; color: #111; margin-bottom: 2px;">
+                  We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                </p>
+                <div style="font-size: 6pt; color: #444; line-height: 1.25;">
+                  * All disputes subject to local jurisdiction.<br/>
+                  * Goods once sold will not be taken back or exchanged.
+                </div>
+              </td>
+              <td colSpan="2" style="border-right: 2px solid #000; padding: 5px 8px; vertical-align: top; font-size: 7.5pt; line-height: 1.35; text-align: left;">
+                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px; font-size: 7.5pt;">Bank &amp; GST Details</div>
+                <table style="width: 100%; font-size: 7.5pt; border-collapse: collapse;">
+                  ${companyGstText ? `<tr><td style="font-weight: bold; width: 55px; padding: 1px 0;">GSTIN</td><td>: <strong>${companyGstText}</strong></td></tr>` : ''}
+                  ${bankNameText ? `<tr><td style="font-weight: bold; width: 55px; padding: 1px 0;">Bank</td><td>: ${bankNameText}</td></tr>` : ''}
+                  ${accountNumberText ? `<tr><td style="font-weight: bold; padding: 1px 0;">A/c No</td><td>: <strong>${accountNumberText}</strong></td></tr>` : ''}
+                  ${ifscCodeText ? `<tr><td style="font-weight: bold; padding: 1px 0;">IFSC</td><td>: <strong>${ifscCodeText}</strong></td></tr>` : ''}
+                  ${branchNameText ? `<tr><td style="font-weight: bold; padding: 1px 0;">Branch</td><td>: ${branchNameText}</td></tr>` : ''}
+                </table>
+              </td>
+              <td colSpan="1" class="signatory-box" style="padding: 6px 8px; vertical-align: top; text-align: right; height: 90px;">
+                <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                  <div style="font-weight: bold; text-transform: uppercase; font-size: 7.5pt;">For ${companyName}</div>
+                  <div style="font-size: 7pt; color: #444; margin-top: 30px;">Authorised Signatory</div>
+                </div>
+              </td>
+            </tr>
+          ` : `
+            <tr style="height: 80px;">
+              <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 6px 8px; vertical-align: top; text-align: left;">
+                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px;">Declaration</div>
+                <div style="font-size: 7.5pt; line-height: 1.3;">We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</div>
+              </td>
+              <td colSpan="2" class="signatory-box" style="padding: 6px 8px; vertical-align: top; text-align: right; height: 80px;">
+                <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+                  <div style="font-weight: bold; text-transform: uppercase; font-size: 8pt;">For ${companyName}</div>
+                  <div style="font-size: 7.5pt; color: #444; margin-top: 30px;">Authorised Signatory</div>
+                </div>
+              </td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+    </div>
     
     <div class="footer-note">
       ${isInvoice ? '*** This is a Computer Generated Tax Invoice ***' : '*** Composition dealer is not eligible to collect the taxes on supply. ***'}
@@ -1094,9 +1238,13 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         rate: parseFloat(item.originalRate) || 0
       })),
       subtotalAmount: totals.subtotal,
-      discountPercent: discountPercent,
-      discountAmount: totals.discountAmount,
-      totalAmount: totals.discountedTotal,
+      discountPercent: docType === 'Invoice' ? 0 : discountPercent,
+      discountAmount: docType === 'Invoice' ? 0 : totals.discountAmount,
+      cgstPercent: docType === 'Invoice' ? (parseFloat(cgstPercent) || 0) : 0,
+      cgstAmount: docType === 'Invoice' ? totals.cgstAmount : 0,
+      sgstPercent: docType === 'Invoice' ? (parseFloat(sgstPercent) || 0) : 0,
+      sgstAmount: docType === 'Invoice' ? totals.sgstAmount : 0,
+      totalAmount: totals.billTotal,
       date: new Date(invoiceDate),
       cancellationNote: `Billing Panel ${docType}: ${invoiceNumber}`,
       companyGst: docType === 'Invoice' ? companyGst : '',
@@ -1126,13 +1274,10 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     }
   };
 
-  // Blank padding rows calculation (to pad screen invoice to exactly 11 rows like screenshot)
+  // Blank padding rows calculation (disabled to keep bill sheet clean and compact)
   const paddingRows = useMemo(() => {
-    const minRows = 11;
-    const currentCount = activeBillingItems.length;
-    const needed = Math.max(0, minRows - currentCount);
-    return Array.from({ length: needed });
-  }, [activeBillingItems]);
+    return [];
+  }, []);
 
   return (
     <div className="admin-section animate-fade-in w-100 p-0 m-0">
@@ -1263,9 +1408,12 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
           </h4>
           <p className="text-muted small m-0">Dynamic in-table entry & automated printing layouts</p>
         </div>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-secondary rounded-pill px-4 fw-semibold" onClick={handleReset}>
-            <i className="bi bi-arrow-counterclockwise me-2"></i>Reset Form
+        <div className="d-flex gap-2 flex-wrap">
+          <button className="btn btn-outline-primary rounded-pill px-3 fw-semibold shadow-xs" onClick={handleAddRow} title="Add manual or catalog product row">
+            <i className="bi bi-plus-circle me-1"></i>+ Add Product
+          </button>
+          <button className="btn btn-outline-secondary rounded-pill px-3 fw-semibold" onClick={handleReset}>
+            <i className="bi bi-arrow-counterclockwise me-1"></i>Reset Form
           </button>
           <button className="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm" onClick={handlePrint} disabled={activeBillingItems.length === 0}>
             <i className="bi bi-printer me-2"></i>Print {docType} (A4)
@@ -1328,28 +1476,33 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                   onChange={e => setCompanyAddress(e.target.value)}
                   placeholder="Address details"
                 />
-                <div className="text-center small fw-semibold mt-1">
-                  Ph : <input
-                    type="text"
-                    className="sheet-input fw-semibold text-center d-inline-block"
-                    style={{ width: '150px' }}
-                    value={companyPhone}
-                    onChange={e => setCompanyPhone(e.target.value)}
-                    placeholder="Phone number"
-                  />
-                </div>
-                {docType === 'Invoice' && (
-                  <div className="text-center small fw-bold text-dark mt-1">
-                    GSTIN : <input
+                <div className="d-flex justify-content-center align-items-center flex-wrap gap-2 small fw-semibold mt-1">
+                  <div className="d-flex align-items-center">
+                    <span>Ph :</span>
+                    <input
                       type="text"
-                      className="sheet-input fw-bold text-center d-inline-block text-primary font-monospace"
-                      style={{ width: '200px' }}
-                      value={companyGst}
-                      onChange={e => setCompanyGst(e.target.value)}
-                      placeholder="e.g. 33AAAAA0000A1Z5"
+                      className="sheet-input fw-semibold text-center d-inline-block ms-1"
+                      style={{ width: '130px' }}
+                      value={companyPhone}
+                      onChange={e => setCompanyPhone(e.target.value)}
+                      placeholder="Phone number"
                     />
                   </div>
-                )}
+                  {docType === 'Invoice' && (
+                    <div className="d-flex align-items-center">
+                      <span className="text-muted mx-2">|</span>
+                      <span className="fw-bold text-dark">GSTIN :</span>
+                      <input
+                        type="text"
+                        className="sheet-input fw-bold text-center d-inline-block text-primary font-monospace ms-1"
+                        style={{ width: '180px' }}
+                        value={companyGst}
+                        onChange={e => setCompanyGst(e.target.value)}
+                        placeholder="e.g. 33AAAAA0000A1Z5"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1439,7 +1592,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                       {/* S.No */}
                       <td className="text-center fw-semibold text-muted py-2">{index + 1}</td>
 
-                      {/* Products (Autocomplete input) */}
+                      {/* Products (Autocomplete input & manual content input) */}
                       <td style={{ position: 'relative' }}>
                         <input
                           id={`product-${index}`}
@@ -1452,35 +1605,58 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             setShowDropdown(true);
                           }}
                           onKeyDown={e => handleKeyDown(index, e)}
-                          placeholder="Type product name..."
+                          placeholder="Type product name (or select)..."
                           autoComplete="off"
                         />
-                        {item.content && (
-                          <div className="text-muted small mt-1" style={{ fontSize: '8.5pt', fontStyle: 'italic' }}>
-                            {item.content} {item.category && `(${item.category})`}
-                          </div>
-                        )}
+                        <div className="d-flex align-items-center mt-1">
+                          <input
+                            type="text"
+                            className="sheet-input text-muted small p-0"
+                            style={{ fontSize: '8pt', fontStyle: 'italic' }}
+                            value={item.content || ''}
+                            onChange={e => handleContentChange(index, e.target.value)}
+                            placeholder="Description / content (optional e.g. 10 pcs, 5 in 1)..."
+                          />
+                          {item.category && item.category !== 'Custom' && (
+                            <span className="badge bg-light text-muted border ms-1 text-nowrap" style={{ fontSize: '6.5pt' }}>
+                              {item.category}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Autocomplete Overlay */}
                         {activeRowIndex === index && showDropdown && (
-                          <div className="autocomplete-container" ref={dropdownRef}>
-                            {filteredProducts.length === 0 ? (
-                              <div className="p-3 text-center text-muted small">No items match search.</div>
-                            ) : (
-                              filteredProducts.map((p, pIdx) => (
-                                <div
-                                  key={p._id || p.id}
-                                  className={`autocomplete-item ${selectedAutocompleteIndex === pIdx ? 'active' : ''}`}
-                                  onClick={() => handleSelectProduct(index, p)}
-                                  onMouseEnter={() => setSelectedAutocompleteIndex(pIdx)}
-                                >
-                                  <div className="fw-bold">{p.name}</div>
-                                  <div className="small text-muted d-flex justify-content-between">
-                                    <span>Category: {p.category} | Content: {p.content}</span>
-                                    <span className="fw-bold text-primary">MRP: ₹{Number(p.originalRate || p.rate || 0).toFixed(2)}</span>
-                                  </div>
+                          <div className="autocomplete-container shadow-lg rounded-3" ref={dropdownRef}>
+                            {item.name?.trim() && (
+                              <div
+                                className="autocomplete-item bg-primary-subtle text-primary border-bottom py-2 px-3 fw-semibold cursor-pointer d-flex align-items-center justify-content-between"
+                                onClick={() => handleSelectCustomProduct(index)}
+                              >
+                                <span>
+                                  <i className="bi bi-pencil-square me-2"></i>
+                                  Use "<strong>{item.name}</strong>" as manual product
+                                </span>
+                                <span className="badge bg-primary text-white" style={{ fontSize: '7pt' }}>Press Enter</span>
+                              </div>
+                            )}
+
+                            {filteredProducts.map((p, pIdx) => (
+                              <div
+                                key={p._id || p.id}
+                                className={`autocomplete-item ${selectedAutocompleteIndex === pIdx ? 'active' : ''}`}
+                                onClick={() => handleSelectProduct(index, p)}
+                                onMouseEnter={() => setSelectedAutocompleteIndex(pIdx)}
+                              >
+                                <div className="fw-bold">{p.name}</div>
+                                <div className="small text-muted d-flex justify-content-between">
+                                  <span>Category: {p.category} | Content: {p.content}</span>
+                                  <span className="fw-bold text-primary">MRP: ₹{Number(p.originalRate || p.rate || 0).toFixed(2)}</span>
                                 </div>
-                              ))
+                              </div>
+                            ))}
+
+                            {filteredProducts.length === 0 && !item.name?.trim() && (
+                              <div className="p-3 text-center text-muted small">Type any product name...</div>
                             )}
                           </div>
                         )}
@@ -1512,7 +1688,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                                 }
                               }
                             }}
-                            placeholder="0"
+                            placeholder="1"
                           />
                           <span className="small text-muted">box</span>
                         </div>
@@ -1523,9 +1699,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                         <div className="d-flex align-items-center justify-content-end font-monospace">
                           <span className="me-1">₹</span>
                           <input
+                            id={`rate-${index}`}
                             type="number"
+                            step="any"
                             className="sheet-input text-end"
-                            style={{ width: '80px' }}
+                            style={{ width: '85px' }}
                             value={item.originalRate}
                             onChange={e => handleRateChange(index, e.target.value)}
                             onKeyDown={e => {
@@ -1594,36 +1772,82 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                     <td className="d-print-none"></td>
                   </tr>
 
-                  {/* Discount percentage input row */}
-                  <tr>
-                    <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
-                      Discount (
-                      <input
-                        type="number"
-                        className="sheet-input d-inline-block text-center fw-bold text-danger"
-                        style={{ width: '45px', borderBottom: '1px dashed #dc3545' }}
-                        value={discountPercent}
-                        onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                      />
-                      %)
-                    </td>
-                    <td className="text-end fw-bold py-2 font-monospace text-danger pe-3">
-                      -₹{totals.discountAmount.toFixed(2)}
-                    </td>
-                    <td className="d-print-none"></td>
-                  </tr>
+                  {docType === 'Invoice' ? (
+                    <>
+                      {/* CGST percentage input row */}
+                      <tr>
+                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
+                          CGST (
+                          <input
+                            type="number"
+                            step="any"
+                            className="sheet-input d-inline-block text-center fw-bold text-primary"
+                            style={{ width: '50px', borderBottom: '1px dashed #0d6efd' }}
+                            value={cgstPercent}
+                            onChange={e => setCgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                          />
+                          %)
+                        </td>
+                        <td className="text-end fw-bold py-2 font-monospace text-primary pe-3">
+                          +₹{totals.cgstAmount.toFixed(2)}
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
 
-                  {/* Discounted Total */}
-                  <tr>
-                    <td colSpan="4" className="text-end fw-bold py-2 border-right-black">Discounted Total</td>
-                    <td className="text-end fw-bold py-2 font-monospace pe-3">₹{totals.discountedTotal.toFixed(2)}</td>
-                    <td className="d-print-none"></td>
-                  </tr>
+                      {/* SGST percentage input row */}
+                      <tr>
+                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
+                          SGST (
+                          <input
+                            type="number"
+                            step="any"
+                            className="sheet-input d-inline-block text-center fw-bold text-primary"
+                            style={{ width: '50px', borderBottom: '1px dashed #0d6efd' }}
+                            value={sgstPercent}
+                            onChange={e => setSgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                          />
+                          %)
+                        </td>
+                        <td className="text-end fw-bold py-2 font-monospace text-primary pe-3">
+                          +₹{totals.sgstAmount.toFixed(2)}
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
+                    </>
+                  ) : (
+                    <>
+                      {/* Discount percentage input row */}
+                      <tr>
+                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
+                          Discount (
+                          <input
+                            type="number"
+                            className="sheet-input d-inline-block text-center fw-bold text-danger"
+                            style={{ width: '45px', borderBottom: '1px dashed #dc3545' }}
+                            value={discountPercent}
+                            onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          />
+                          %)
+                        </td>
+                        <td className="text-end fw-bold py-2 font-monospace text-danger pe-3">
+                          -₹{totals.discountAmount.toFixed(2)}
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
+                      {/* Discounted Total */}
+                      <tr>
+                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">Discounted Total</td>
+                        <td className="text-end fw-bold py-2 font-monospace pe-3">₹{totals.discountedTotal.toFixed(2)}</td>
+                        <td className="d-print-none"></td>
+                      </tr>
+                    </>
+                  )}
 
                   {/* Bill Total */}
                   <tr className="border-bottom border-dark border-2">
                     <td colSpan="4" className="text-end fw-bold py-2 border-right-black">Bill Total</td>
-                    <td className="text-end fw-bold py-2 font-monospace pe-3" style={{ fontSize: '11pt' }}>₹{totals.discountedTotal.toFixed(2)}</td>
+                    <td className="text-end fw-bold py-2 font-monospace pe-3" style={{ fontSize: '11pt' }}>₹{totals.billTotal.toFixed(2)}</td>
                     <td className="d-print-none"></td>
                   </tr>
 
@@ -1632,7 +1856,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                     <td colSpan="5" className="p-3 text-start">
                       <div className="small fw-semibold text-uppercase text-muted mb-1">Amount Chargeable (in words):</div>
                       <div className="fw-bold" style={{ fontSize: '9.5pt' }}>
-                        {numberToWords(totals.discountedTotal)}
+                        {numberToWords(totals.billTotal)}
                       </div>
                       <div className="text-end w-100 small text-muted" style={{ marginTop: '-15px', fontStyle: 'italic' }}>E. & O.E</div>
                     </td>
@@ -1655,14 +1879,47 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                       <td colSpan="2" className="p-3 text-start border-right-black bg-light-subtle" style={{ verticalAlign: 'top', width: '37%' }}>
                         <div className="fw-bold text-decoration-underline small mb-2 d-flex align-items-center justify-content-between">
                           <span>Bank &amp; GST Details</span>
-                          <span className="badge bg-secondary-subtle text-secondary border fw-normal" style={{ fontSize: '6.5pt' }}>Editable</span>
+                          <div className="d-flex align-items-center gap-1">
+                            {bankSaveStatus === 'saving' && (
+                              <span className="badge bg-warning text-dark border py-1 px-2" style={{ fontSize: '7pt' }}>
+                                <span className="spinner-border spinner-border-sm me-1" style={{ width: '8px', height: '8px' }}></span>Saving...
+                              </span>
+                            )}
+                            {bankSaveStatus === 'saved' && (
+                              <span className="badge bg-success border py-1 px-2 text-white" style={{ fontSize: '7pt' }}>
+                                ✓ Saved
+                              </span>
+                            )}
+                            {isBankDetailsEditable ? (
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-success py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-bold"
+                                style={{ fontSize: '7.5pt' }}
+                                onClick={handleSaveBankDetails}
+                                title="Save GST and Bank Details"
+                              >
+                                <i className="bi bi-floppy2"></i> Save
+                              </button>
+                            ) : (
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-semibold"
+                                style={{ fontSize: '7.5pt' }}
+                                onClick={() => setIsBankDetailsEditable(true)}
+                                title="Edit GST and Bank Details"
+                              >
+                                <i className="bi bi-pencil-square"></i> Edit
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="d-flex flex-column gap-1" style={{ fontSize: '8pt' }}>
                           <div className="d-flex align-items-center">
                             <span className="fw-bold text-muted" style={{ width: '60px' }}>GSTIN:</span>
                             <input 
                               type="text" 
-                              className="sheet-input fw-semibold font-monospace py-0 px-1" 
+                              className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                              readOnly={!isBankDetailsEditable}
                               value={companyGst} 
                               onChange={e => setCompanyGst(e.target.value)} 
                               placeholder="GSTIN Number" 
@@ -1673,7 +1930,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             <span className="fw-bold text-muted" style={{ width: '60px' }}>Bank:</span>
                             <input 
                               type="text" 
-                              className="sheet-input py-0 px-1" 
+                              className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                              readOnly={!isBankDetailsEditable}
                               value={bankName} 
                               onChange={e => setBankName(e.target.value)} 
                               placeholder="Bank Name" 
@@ -1684,7 +1942,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             <span className="fw-bold text-muted" style={{ width: '60px' }}>A/c No:</span>
                             <input 
                               type="text" 
-                              className="sheet-input fw-bold font-monospace py-0 px-1" 
+                              className={`sheet-input fw-bold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                              readOnly={!isBankDetailsEditable}
                               value={accountNumber} 
                               onChange={e => setAccountNumber(e.target.value)} 
                               placeholder="Account Number" 
@@ -1695,7 +1954,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             <span className="fw-bold text-muted" style={{ width: '60px' }}>IFSC:</span>
                             <input 
                               type="text" 
-                              className="sheet-input fw-semibold font-monospace py-0 px-1" 
+                              className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                              readOnly={!isBankDetailsEditable}
                               value={ifscCode} 
                               onChange={e => setIfscCode(e.target.value)} 
                               placeholder="IFSC Code" 
@@ -1706,7 +1966,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             <span className="fw-bold text-muted" style={{ width: '60px' }}>Branch:</span>
                             <input 
                               type="text" 
-                              className="sheet-input py-0 px-1" 
+                              className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                              readOnly={!isBankDetailsEditable}
                               value={branchName} 
                               onChange={e => setBranchName(e.target.value)} 
                               placeholder="Branch Name" 
