@@ -66,6 +66,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   const [customer, setCustomer] = useState({
     name: '',
     phone: '',
+    email: '',
     address: ''
   });
 
@@ -252,6 +253,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       name: '',
       category: '',
       content: '',
+      hsn: '3604',
+      unit: 'box',
       quantity: '',
       originalRate: '', // acts as the unit Rate (MRP) shown in the row
       rate: '',         // acts as the computed offer rate
@@ -310,6 +313,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     setBillingItems(prev => {
       const updated = [...prev];
       updated[index].isCustom = true;
+      if (!updated[index].hsn) updated[index].hsn = '3604';
       if (!updated[index].quantity) updated[index].quantity = 1;
       return updated;
     });
@@ -340,6 +344,24 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     });
   };
 
+  // Update item HSN Code
+  const handleHsnChange = (index, hsnVal) => {
+    setBillingItems(prev => {
+      const updated = [...prev];
+      updated[index].hsn = hsnVal;
+      return updated;
+    });
+  };
+
+  // Update item unit (per)
+  const handleUnitChange = (index, unitVal) => {
+    setBillingItems(prev => {
+      const updated = [...prev];
+      updated[index].unit = unitVal;
+      return updated;
+    });
+  };
+
   // Autocomplete Select Product
   const handleSelectProduct = (index, product) => {
     setBillingItems(prev => {
@@ -352,6 +374,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         name: product.name,
         category: product.category,
         content: product.content,
+        hsn: product.hsn || '3604',
+        unit: product.unit || 'box',
         quantity: 1,
         originalRate: mrp, // Table Rate column
         rate: product.rate || mrp, // Base offer rate
@@ -484,6 +508,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     setCustomer({
       name: '',
       phone: '',
+      email: '',
       address: ''
     });
     setBillingItems([createEmptyRow()]);
@@ -521,6 +546,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
           name: item.name,
           category: item.category || 'Custom',
           content: item.content || 'box',
+          hsn: item.hsn || '3604',
+          unit: item.unit || 'box',
           quantity: qty,
           rate: itemOfferRate,
           originalRate: mrp,
@@ -533,6 +560,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       const invoiceData = {
         customerName: customer.name.trim(),
         customerPhone: customer.phone.trim(),
+        customerEmail: customer.email ? customer.email.trim() : '',
         customerAddress: customer.address.trim(),
         items: orderItems,
         subtotalAmount: totals.subtotal,
@@ -1017,7 +1045,8 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     .totals-row td { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: bold; padding: 5px 6px; }
     .amount-in-words-row td { padding: 6px 10px; }
     .declaration-box { padding: 6px 8px; font-size: 7.5pt; line-height: 1.35; }
-    .signatory-box { padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; text-align: right; }
+    .signatory-box { padding: 6px 10px; vertical-align: top; text-align: right; height: 100%; }
+    .signatory-inner { display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 95px; }
     .footer-note { text-align: center; font-weight: bold; margin-top: 8px; font-size: 8pt; }
     @media print {
       body { padding: 0; background: transparent; }
@@ -1054,8 +1083,9 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
   <div class="sheet-container">
     <div class="bill-sheet">
       <!-- Document Header -->
-      <div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size: 10.5pt; padding: 4px 0;">
-        ${docTitleLabel}
+      <div class="border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size: 10.5pt; padding: 4px 12px; display: flex; align-items: center; justify-content: center; position: relative;">
+        <span style="letter-spacing: 1px;">${docTitleLabel}</span>
+        ${isInvoice ? `<span style="position: absolute; right: 12px; font-size: 8pt; font-weight: normal; font-style: italic; text-transform: none; color: #111;">Original Copy</span>` : ''}
       </div>
       <div class="row-flex align-items-center border-bottom-black">
         <div class="header-logo border-right-black">
@@ -1080,6 +1110,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
           <p style="font-weight: bold; font-size: 9.5pt; margin-bottom: 2px;">${order.customerName || 'In-Store Cash Customer'}</p>
           <p style="font-size: 8.5pt; color: #222; line-height: 1.35; white-space: pre-line;">${order.customerAddress || ''}</p>
           ${order.customerPhone ? `<p style="font-size: 8.5pt; margin-top: 3px; font-weight: 500;">Ph: ${order.customerPhone}</p>` : ''}
+          ${order.customerEmail ? `<p style="font-size: 8.5pt; margin-top: 1px; color: #444;">Email: ${order.customerEmail}</p>` : ''}
         </div>
         <div class="meta-box">
           <div class="meta-row">
@@ -1096,21 +1127,48 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
       <!-- Product Table -->
       <table class="product-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr class="text-center">
-            <th style="width: 45px;">S.No</th>
-            <th>Products</th>
-            <th style="width: 90px;">Qty</th>
-            <th style="width: 110px;">Rate</th>
-            <th style="width: 130px;">Amount</th>
-          </tr>
+          ${isInvoice ? `
+            <tr class="text-center">
+              <th style="width: 40px;">S.No</th>
+              <th>Description of Goods</th>
+              <th style="width: 75px;">HSN Code</th>
+              <th style="width: 75px;">Quantity</th>
+              <th style="width: 85px;">Rate</th>
+              <th style="width: 55px;">per</th>
+              <th style="width: 105px;">Amount</th>
+            </tr>
+          ` : `
+            <tr class="text-center">
+              <th style="width: 45px;">S.No</th>
+              <th>Products</th>
+              <th style="width: 90px;">Qty</th>
+              <th style="width: 110px;">Rate</th>
+              <th style="width: 130px;">Amount</th>
+            </tr>
+          `}
         </thead>
         <tbody>
-          ${items.map((item, idx) => `
+          ${isInvoice ? items.map((item, idx) => `
             <tr>
               <td class="text-center" style="font-weight: bold; color: #333; border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${idx + 1}</td>
               <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">
                 <div style="font-weight: bold;">${item.name || 'Product'}</div>
                 ${item.content ? `<div style="font-size: 7.5pt; color: #555; font-style: italic; margin-top: 1px;">${item.content} ${item.category ? `(${item.category})` : ''}</div>` : ''}
+              </td>
+              <td class="text-center font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.hsn || '3604'}</td>
+              <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.quantity || 0} ${item.unit || 'box'}</td>
+              <td class="text-end font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">₹${(item.originalRate || item.rate || 0).toFixed(2)}</td>
+              <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.unit || 'box'}</td>
+              <td class="text-end font-monospace" style="font-weight: bold; border-bottom: 1.5px solid #000;">₹${((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2)}</td>
+            </tr>
+          `).join('') : items.map((item, idx) => `
+            <tr>
+              <td class="text-center" style="font-weight: bold; color: #333; border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${idx + 1}</td>
+              <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">
+                <div style="font-weight: bold;">${item.name || 'Product'}</div>
+                <div style="font-size: 7.5pt; color: #555; font-style: italic; margin-top: 1px;">
+                  ${item.content ? item.content : ''} ${item.category ? `(${item.category})` : ''} <span style="font-family: monospace; font-size: 7pt; color: #555; font-style: normal; margin-left: 3px;">[HSN: ${item.hsn || '3604'}]</span>
+                </div>
               </td>
               <td class="text-center" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">${item.quantity || 0} box</td>
               <td class="text-end font-monospace" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;">₹${(item.originalRate || item.rate || 0).toFixed(2)}</td>
@@ -1120,52 +1178,40 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         </tbody>
 
         <tbody style="page-break-inside: avoid; break-inside: avoid;">
-          <tr class="totals-row" style="border-top: 2px solid #000;">
-            <td colSpan="2" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Total</td>
-            <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 5px 6px;">${totalQty}</td>
-            <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Sub total</td>
-            <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
-          </tr>
-          
           ${isInvoice ? `
-            <tr>
-              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">CGST (${cgstPct}%)</td>
+            <tr style="border-top: 2px solid #000;">
+              <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+              <td colSpan="5" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; padding: 4px 10px; text-align: right; white-space: nowrap;">CGST ${cgstPct}%</td>
               <td style="border-bottom: 1.5px solid #000; text-align: right; color: #0d6efd; font-weight: bold; padding: 4px 6px;" class="font-monospace">+₹${cgstAmt.toFixed(2)}</td>
             </tr>
             
             <tr>
-              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">SGST (${sgstPct}%)</td>
+              <td style="border-right: 2px solid #000; border-bottom: 1.5px solid #000;"></td>
+              <td colSpan="5" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; font-weight: bold; padding: 4px 10px; text-align: right; white-space: nowrap;">SGST ${sgstPct}%</td>
               <td style="border-bottom: 1.5px solid #000; text-align: right; color: #0d6efd; font-weight: bold; padding: 4px 6px;" class="font-monospace">+₹${sgstAmt.toFixed(2)}</td>
             </tr>
-          ` : `
-            <tr>
-              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discount (${discountPct}%)</td>
-              <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 4px 6px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
-            </tr>
-            
-            <tr>
-              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discounted Total</td>
-              <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
-            </tr>
-          `}
-          
-          <tr style="border-bottom: 2px solid #000;">
-            <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;">Bill Total</td>
-            <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
-          </tr>
 
-          <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
-            <td colSpan="5" style="border-bottom: 2px solid #000; padding: 6px 10px; text-align: left;">
-              <div style="font-size: 7.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Amount Chargeable (in words):</div>
-              <div style="font-weight: bold; font-size: 8.5pt;">${numberToWords(totalAmount)}</div>
-              <div style="text-align: right; font-size: 7.5pt; color: #555; font-style: italic; margin-top: -8px;">E. &amp; O.E</div>
-            </td>
-          </tr>
+            <tr class="totals-row" style="border-top: 2px solid #000; border-bottom: 2px solid #000;">
+              <td colSpan="3" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 10px; letter-spacing: 0.5px;">Total</td>
+              <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 5px 6px;">${totalQty} box</td>
+              <td style="border-right: 2px solid #000; border-bottom: 2px solid #000;"></td>
+              <td style="border-right: 2px solid #000; border-bottom: 2px solid #000;"></td>
+              <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+            </tr>
 
-          ${isInvoice ? `
-            <tr style="height: 90px;">
-              <td colSpan="2" class="declaration-box" style="border-right: 2px solid #000; padding: 6px 8px; vertical-align: top; text-align: left;">
-                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px; font-size: 7.5pt;">Declaration &amp; Disclaimer</div>
+            <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
+              <td colSpan="7" style="border-bottom: 2px solid #000; padding: 6px 10px; text-align: left;">
+                <div style="font-size: 7.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Amount Chargeable (in words):</div>
+                <div style="font-weight: bold; font-size: 8.5pt;">${numberToWords(totalAmount)}</div>
+              </td>
+            </tr>
+
+            <tr style="min-height: 95px;">
+              <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 6px 8px; vertical-align: top; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+                  <div style="font-weight: bold; text-decoration: underline; font-size: 7.5pt;">Declaration &amp; Disclaimer</div>
+                  <div style="font-size: 7pt; color: #555; font-style: italic; font-weight: bold;">E. &amp; O.E</div>
+                </div>
                 <p style="font-size: 6.5pt; line-height: 1.3; color: #111; margin-bottom: 2px;">
                   We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
                 </p>
@@ -1175,32 +1221,64 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                 </div>
               </td>
               <td colSpan="2" style="border-right: 2px solid #000; padding: 5px 8px; vertical-align: top; font-size: 7.5pt; line-height: 1.35; text-align: left;">
-                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px; font-size: 7.5pt;">Bank &amp; GST Details</div>
+                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 3px; font-size: 7.5pt;">Bank &amp; GST Details</div>
                 <table style="width: 100%; font-size: 7.5pt; border-collapse: collapse;">
-                  ${companyGstText ? `<tr><td style="font-weight: bold; width: 55px; padding: 1px 0;">GSTIN</td><td>: <strong>${companyGstText}</strong></td></tr>` : ''}
-                  ${bankNameText ? `<tr><td style="font-weight: bold; width: 55px; padding: 1px 0;">Bank</td><td>: ${bankNameText}</td></tr>` : ''}
-                  ${accountNumberText ? `<tr><td style="font-weight: bold; padding: 1px 0;">A/c No</td><td>: <strong>${accountNumberText}</strong></td></tr>` : ''}
-                  ${ifscCodeText ? `<tr><td style="font-weight: bold; padding: 1px 0;">IFSC</td><td>: <strong>${ifscCodeText}</strong></td></tr>` : ''}
-                  ${branchNameText ? `<tr><td style="font-weight: bold; padding: 1px 0;">Branch</td><td>: ${branchNameText}</td></tr>` : ''}
+                  ${companyGstText ? `<tr><td style="border: none; padding: 1px 0; font-weight: bold; width: 48px; white-space: nowrap;">GSTIN</td><td style="border: none; padding: 1px 0; width: 8px; text-align: center;">:</td><td style="border: none; padding: 1px 0; font-family: monospace; white-space: nowrap;"><strong>${companyGstText}</strong></td></tr>` : ''}
+                  ${bankNameText ? `<tr><td style="border: none; padding: 1px 0; font-weight: bold; width: 48px; white-space: nowrap;">Bank</td><td style="border: none; padding: 1px 0; width: 8px; text-align: center;">:</td><td style="border: none; padding: 1px 0; white-space: nowrap;">${bankNameText}</td></tr>` : ''}
+                  ${accountNumberText ? `<tr><td style="border: none; padding: 1px 0; font-weight: bold; width: 48px; white-space: nowrap;">A/c No</td><td style="border: none; padding: 1px 0; width: 8px; text-align: center;">:</td><td style="border: none; padding: 1px 0; font-family: monospace; white-space: nowrap;"><strong>${accountNumberText}</strong></td></tr>` : ''}
+                  ${ifscCodeText ? `<tr><td style="border: none; padding: 1px 0; font-weight: bold; width: 48px; white-space: nowrap;">IFSC</td><td style="border: none; padding: 1px 0; width: 8px; text-align: center;">:</td><td style="border: none; padding: 1px 0; font-family: monospace; white-space: nowrap;"><strong>${ifscCodeText}</strong></td></tr>` : ''}
+                  ${branchNameText ? `<tr><td style="border: none; padding: 1px 0; font-weight: bold; width: 48px; white-space: nowrap;">Branch</td><td style="border: none; padding: 1px 0; width: 8px; text-align: center;">:</td><td style="border: none; padding: 1px 0; white-space: nowrap;">${branchNameText}</td></tr>` : ''}
                 </table>
               </td>
-              <td colSpan="1" class="signatory-box" style="padding: 6px 8px; vertical-align: top; text-align: right; height: 90px;">
-                <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-                  <div style="font-weight: bold; text-transform: uppercase; font-size: 7.5pt;">For ${companyName}</div>
-                  <div style="font-size: 7pt; color: #444; margin-top: 30px;">Authorised Signatory</div>
+              <td colSpan="2" class="signatory-box" style="padding: 6px 10px; vertical-align: top; text-align: right; height: 100%;">
+                <div class="signatory-inner">
+                  <div style="font-weight: bold; text-transform: uppercase; font-size: 7.5pt; white-space: nowrap;">For ${companyName}</div>
+                  <div style="font-size: 7pt; color: #444; margin-top: auto; padding-top: 35px; white-space: nowrap;">Authorised Signatory</div>
                 </div>
               </td>
             </tr>
           ` : `
-            <tr style="height: 80px;">
+            <tr class="totals-row" style="border-top: 2px solid #000;">
+              <td colSpan="2" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Total</td>
+              <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: center; font-weight: bold; padding: 5px 6px;">${totalQty}</td>
+              <td style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;">Sub total</td>
+              <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; padding: 5px 6px;" class="font-monospace">₹${subtotal.toFixed(2)}</td>
+            </tr>
+            
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discount (${discountPct}%)</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; color: #d9534f; font-weight: bold; padding: 4px 6px;" class="font-monospace">-₹${discountAmount.toFixed(2)}</td>
+            </tr>
+            
+            <tr>
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">Discounted Total</td>
+              <td style="border-bottom: 1.5px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+            </tr>
+
+            <tr style="border-bottom: 2px solid #000;">
+              <td colSpan="4" style="border-right: 2px solid #000; border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;">Bill Total</td>
+              <td style="border-bottom: 2px solid #000; text-align: right; font-weight: bold; font-size: 10pt; padding: 5px 6px;" class="font-monospace">₹${totalAmount.toFixed(2)}</td>
+            </tr>
+
+            <tr class="amount-in-words-row" style="border-bottom: 2px solid #000;">
+              <td colSpan="5" style="border-bottom: 2px solid #000; padding: 6px 10px; text-align: left;">
+                <div style="font-size: 7.5pt; color: #444; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Amount Chargeable (in words):</div>
+                <div style="font-weight: bold; font-size: 8.5pt;">${numberToWords(totalAmount)}</div>
+              </td>
+            </tr>
+
+            <tr style="min-height: 85px;">
               <td colSpan="3" class="declaration-box" style="border-right: 2px solid #000; padding: 6px 8px; vertical-align: top; text-align: left;">
-                <div style="font-weight: bold; text-decoration: underline; margin-bottom: 2px;">Declaration</div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+                  <div style="font-weight: bold; text-decoration: underline; font-size: 8pt;">Declaration</div>
+                  <div style="font-size: 7pt; color: #555; font-style: italic; font-weight: bold;">E. &amp; O.E</div>
+                </div>
                 <div style="font-size: 7.5pt; line-height: 1.3;">We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</div>
               </td>
-              <td colSpan="2" class="signatory-box" style="padding: 6px 8px; vertical-align: top; text-align: right; height: 80px;">
-                <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-                  <div style="font-weight: bold; text-transform: uppercase; font-size: 8pt;">For ${companyName}</div>
-                  <div style="font-size: 7.5pt; color: #444; margin-top: 30px;">Authorised Signatory</div>
+              <td colSpan="2" class="signatory-box" style="padding: 6px 10px; vertical-align: top; text-align: right; height: 100%;">
+                <div class="signatory-inner">
+                  <div style="font-weight: bold; text-transform: uppercase; font-size: 8pt; white-space: nowrap;">For ${companyName}</div>
+                  <div style="font-size: 7.5pt; color: #444; margin-top: auto; padding-top: 30px; white-space: nowrap;">Authorised Signatory</div>
                 </div>
               </td>
             </tr>
@@ -1228,11 +1306,14 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
     const activeOrder = {
       customerName: customer.name.trim() || 'In-Store Cash Customer',
       customerPhone: customer.phone.trim(),
+      customerEmail: customer.email ? customer.email.trim() : '',
       customerAddress: customer.address.trim(),
       items: activeBillingItems.map(item => ({
         name: item.name,
         content: item.content,
         category: item.category,
+        hsn: item.hsn || '3604',
+        unit: item.unit || 'box',
         quantity: parseInt(item.quantity, 10) || 0,
         originalRate: parseFloat(item.originalRate) || 0,
         rate: parseFloat(item.originalRate) || 0
@@ -1451,8 +1532,13 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
         <div className="bill-sheet p-4 p-md-5">
           <div className="border border-dark">
             {/* Title at top center */}
-            <div className="text-center border-bottom border-dark py-1 fw-bold text-uppercase tracking-wider" style={{ fontSize: '11pt' }}>
-              {docType === 'Estimate' ? 'Estimate' : 'Tax Invoice'}
+            <div className="border-bottom border-dark py-1 fw-bold text-uppercase tracking-wider position-relative d-flex align-items-center justify-content-center" style={{ fontSize: '11pt', padding: '4px 12px' }}>
+              <span>{docType === 'Estimate' ? 'Estimate' : 'Tax Invoice'}</span>
+              {docType === 'Invoice' && (
+                <span className="position-absolute end-0 me-3 text-muted fst-italic fw-normal" style={{ fontSize: '8pt', textTransform: 'none' }}>
+                  Original Copy
+                </span>
+              )}
             </div>
 
             {/* Header: Logo + Brand Info */}
@@ -1525,15 +1611,29 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                   onChange={e => setCustomer({ ...customer, address: e.target.value })}
                   placeholder="Delivery Address"
                 />
-                <div className="small text-muted mt-1">
-                  Ph : <input
-                    type="text"
-                    className="sheet-input d-inline-block"
-                    style={{ width: '150px' }}
-                    value={customer.phone}
-                    onChange={e => setCustomer({ ...customer, phone: e.target.value })}
-                    placeholder="Phone"
-                  />
+                <div className="d-flex flex-wrap gap-3 mt-1">
+                  <div className="small text-muted d-flex align-items-center">
+                    <span className="me-1">Ph:</span>
+                    <input
+                      type="text"
+                      className="sheet-input d-inline-block"
+                      style={{ width: '130px' }}
+                      value={customer.phone}
+                      onChange={e => setCustomer({ ...customer, phone: e.target.value })}
+                      placeholder="Phone"
+                    />
+                  </div>
+                  <div className="small text-muted d-flex align-items-center">
+                    <span className="me-1">Email:</span>
+                    <input
+                      type="email"
+                      className="sheet-input d-inline-block"
+                      style={{ width: '170px' }}
+                      value={customer.email || ''}
+                      onChange={e => setCustomer({ ...customer, email: e.target.value })}
+                      placeholder="Email (optional)"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1577,14 +1677,27 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
             <div className="w-100">
               <table className="table-invoice">
                 <thead>
-                  <tr className="text-center text-uppercase">
-                    <th style={{ width: '50px' }}>S.No</th>
-                    <th>Products</th>
-                    <th style={{ width: '110px' }}>Qty</th>
-                    <th style={{ width: '130px' }}>Rate</th>
-                    <th style={{ width: '140px' }}>Amount</th>
-                    <th style={{ width: '90px' }} className="d-print-none">Actions</th>
-                  </tr>
+                  {docType === 'Invoice' ? (
+                    <tr className="text-center text-uppercase">
+                      <th style={{ width: '45px' }}>S.No</th>
+                      <th>Description of Goods</th>
+                      <th style={{ width: '85px' }}>HSN Code</th>
+                      <th style={{ width: '85px' }}>Quantity</th>
+                      <th style={{ width: '95px' }}>Rate</th>
+                      <th style={{ width: '65px' }}>per</th>
+                      <th style={{ width: '110px' }}>Amount</th>
+                      <th style={{ width: '80px' }} className="d-print-none">Actions</th>
+                    </tr>
+                  ) : (
+                    <tr className="text-center text-uppercase">
+                      <th style={{ width: '50px' }}>S.No</th>
+                      <th>Products</th>
+                      <th style={{ width: '110px' }}>Qty</th>
+                      <th style={{ width: '130px' }}>Rate</th>
+                      <th style={{ width: '140px' }}>Amount</th>
+                      <th style={{ width: '90px' }} className="d-print-none">Actions</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {billingItems.map((item, index) => (
@@ -1592,7 +1705,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                       {/* S.No */}
                       <td className="text-center fw-semibold text-muted py-2">{index + 1}</td>
 
-                      {/* Products (Autocomplete input & manual content input) */}
+                      {/* Products / Description of Goods */}
                       <td style={{ position: 'relative' }}>
                         <input
                           id={`product-${index}`}
@@ -1622,6 +1735,11 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                               {item.category}
                             </span>
                           )}
+                          {docType !== 'Invoice' && item.name && (
+                            <span className="badge bg-light text-muted border ms-1 text-nowrap font-monospace" style={{ fontSize: '6.5pt' }}>
+                              HSN: {item.hsn || '3604'}
+                            </span>
+                          )}
                         </div>
 
                         {/* Autocomplete Overlay */}
@@ -1649,7 +1767,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                               >
                                 <div className="fw-bold">{p.name}</div>
                                 <div className="small text-muted d-flex justify-content-between">
-                                  <span>Category: {p.category} | Content: {p.content}</span>
+                                  <span>Category: {p.category} | Content: {p.content} | HSN: {p.hsn || '3604'}</span>
                                   <span className="fw-bold text-primary">MRP: ₹{Number(p.originalRate || p.rate || 0).toFixed(2)}</span>
                                 </div>
                               </div>
@@ -1662,6 +1780,19 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                         )}
                       </td>
 
+                      {/* HSN Code (Invoice Mode Only) */}
+                      {docType === 'Invoice' && (
+                        <td className="text-center font-monospace">
+                          <input
+                            type="text"
+                            className="sheet-input text-center font-monospace"
+                            value={item.hsn !== undefined ? item.hsn : '3604'}
+                            onChange={e => handleHsnChange(index, e.target.value)}
+                            placeholder="3604"
+                          />
+                        </td>
+                      )}
+
                       {/* Quantity */}
                       <td className="text-center">
                         <div className="d-flex align-items-center justify-content-center">
@@ -1669,28 +1800,25 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             id={`qty-${index}`}
                             type="number"
                             className="sheet-input text-center fw-bold me-1"
-                            style={{ width: '60px' }}
+                            style={{ width: docType === 'Invoice' ? '60px' : '60px' }}
                             min="1"
                             value={item.quantity}
                             onChange={e => handleQtyChange(index, e.target.value)}
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                const nextInput = document.getElementById(`product-${index + 1}`);
-                                if (nextInput) {
-                                  nextInput.focus();
+                                const nextRate = document.getElementById(`rate-${index}`);
+                                if (nextRate) {
+                                  nextRate.focus();
                                 } else {
-                                  handleAddRow();
-                                  setTimeout(() => {
-                                    const newRowInput = document.getElementById(`product-${index + 1}`);
-                                    if (newRowInput) newRowInput.focus();
-                                  }, 50);
+                                  const nextInput = document.getElementById(`product-${index + 1}`);
+                                  if (nextInput) nextInput.focus();
                                 }
                               }
                             }}
                             placeholder="1"
                           />
-                          <span className="small text-muted">box</span>
+                          {docType !== 'Invoice' && <span className="small text-muted">box</span>}
                         </div>
                       </td>
 
@@ -1703,7 +1831,7 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                             type="number"
                             step="any"
                             className="sheet-input text-end"
-                            style={{ width: '85px' }}
+                            style={{ width: docType === 'Invoice' ? '75px' : '85px' }}
                             value={item.originalRate}
                             onChange={e => handleRateChange(index, e.target.value)}
                             onKeyDown={e => {
@@ -1725,6 +1853,19 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                           />
                         </div>
                       </td>
+
+                      {/* per (unit - Invoice Mode Only) */}
+                      {docType === 'Invoice' && (
+                        <td className="text-center">
+                          <input
+                            type="text"
+                            className="sheet-input text-center text-muted small"
+                            value={item.unit || 'box'}
+                            onChange={e => handleUnitChange(index, e.target.value)}
+                            placeholder="box"
+                          />
+                        </td>
+                      )}
 
                       {/* Amount */}
                       <td className="text-end font-monospace py-2 pe-3 fw-semibold">
@@ -1756,37 +1897,34 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                     <tr key={`pad-${pIdx}`} style={{ height: '35px' }}>
                       <td className="border-right-black"></td>
                       <td className="border-right-black"></td>
+                      {docType === 'Invoice' && <td className="border-right-black"></td>}
                       <td className="border-right-black"></td>
                       <td className="border-right-black"></td>
+                      {docType === 'Invoice' && <td className="border-right-black"></td>}
                       <td></td>
                       <td className="d-print-none"></td>
                     </tr>
                   ))}
 
                   {/* Grand Totals Section */}
-                  <tr className="footer-total-row border-top border-dark border-2">
-                    <td colSpan="2" className="text-end fw-bold py-2 border-right-black">Total</td>
-                    <td className="text-center fw-bold py-2 border-right-black">{totals.totalQty}</td>
-                    <td className="text-end fw-bold py-2 border-right-black">Sub total</td>
-                    <td className="text-end fw-bold py-2 font-monospace pe-3">₹{totals.subtotal.toFixed(2)}</td>
-                    <td className="d-print-none"></td>
-                  </tr>
-
                   {docType === 'Invoice' ? (
                     <>
                       {/* CGST percentage input row */}
                       <tr>
-                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
-                          CGST (
-                          <input
-                            type="number"
-                            step="any"
-                            className="sheet-input d-inline-block text-center fw-bold text-primary"
-                            style={{ width: '50px', borderBottom: '1px dashed #0d6efd' }}
-                            value={cgstPercent}
-                            onChange={e => setCgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
-                          />
-                          %)
+                        <td className="border-right-black"></td>
+                        <td colSpan="5" className="fw-bold py-2 border-right-black text-end pe-3">
+                          <div className="d-inline-flex align-items-center justify-content-end text-nowrap">
+                            <span className="me-2">CGST</span>
+                            <input
+                              type="number"
+                              step="any"
+                              className="sheet-input text-center fw-bold text-primary p-0 m-0"
+                              style={{ width: '38px', borderBottom: '1.5px dashed #0d6efd' }}
+                              value={cgstPercent}
+                              onChange={e => setCgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                            />
+                            <span className="ms-1 text-primary">%</span>
+                          </div>
                         </td>
                         <td className="text-end fw-bold py-2 font-monospace text-primary pe-3">
                           +₹{totals.cgstAmount.toFixed(2)}
@@ -1796,26 +1934,183 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
 
                       {/* SGST percentage input row */}
                       <tr>
-                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
-                          SGST (
-                          <input
-                            type="number"
-                            step="any"
-                            className="sheet-input d-inline-block text-center fw-bold text-primary"
-                            style={{ width: '50px', borderBottom: '1px dashed #0d6efd' }}
-                            value={sgstPercent}
-                            onChange={e => setSgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
-                          />
-                          %)
+                        <td className="border-right-black"></td>
+                        <td colSpan="5" className="fw-bold py-2 border-right-black text-end pe-3">
+                          <div className="d-inline-flex align-items-center justify-content-end text-nowrap">
+                            <span className="me-2">SGST</span>
+                            <input
+                              type="number"
+                              step="any"
+                              className="sheet-input text-center fw-bold text-primary p-0 m-0"
+                              style={{ width: '38px', borderBottom: '1.5px dashed #0d6efd' }}
+                              value={sgstPercent}
+                              onChange={e => setSgstPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                            />
+                            <span className="ms-1 text-primary">%</span>
+                          </div>
                         </td>
                         <td className="text-end fw-bold py-2 font-monospace text-primary pe-3">
                           +₹{totals.sgstAmount.toFixed(2)}
                         </td>
                         <td className="d-print-none"></td>
                       </tr>
+
+                      {/* Total row */}
+                      <tr className="footer-total-row border-top border-dark border-2">
+                        <td colSpan="3" className="text-end fw-bold py-2 border-right-black pe-3" style={{ letterSpacing: '0.5px' }}>Total</td>
+                        <td className="text-center fw-bold py-2 border-right-black">{totals.totalQty} box</td>
+                        <td className="border-right-black"></td>
+                        <td className="border-right-black"></td>
+                        <td className="text-end fw-bold py-2 font-monospace pe-3" style={{ fontSize: '11pt' }}>₹{totals.billTotal.toFixed(2)}</td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
+                      {/* Amount in words */}
+                      <tr className="border-bottom border-dark">
+                        <td colSpan="7" className="p-3 text-start">
+                          <div className="small fw-semibold text-uppercase text-muted mb-1">Amount Chargeable (in words):</div>
+                          <div className="fw-bold" style={{ fontSize: '9.5pt' }}>
+                            {numberToWords(totals.billTotal)}
+                          </div>
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
+                      {/* Declaration and Signature block */}
+                      <tr>
+                        <td colSpan="3" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '36%' }}>
+                          <div className="d-flex justify-content-between align-items-baseline mb-1">
+                            <span className="fw-bold text-decoration-underline small">Declaration &amp; Disclaimer</span>
+                            <span className="small text-muted fst-italic fw-bold" style={{ fontSize: '7.5pt' }}>E. &amp; O.E</span>
+                          </div>
+                          <p className="m-0 text-muted mb-2" style={{ fontSize: '7.5pt', lineHeight: '1.35' }}>
+                            We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                          </p>
+                          <div className="text-muted" style={{ fontSize: '7pt', lineHeight: '1.3' }}>
+                            * All disputes subject to local jurisdiction.<br/>
+                            * Goods once sold will not be taken back or exchanged.
+                          </div>
+                        </td>
+                        <td colSpan="2" className="p-3 text-start border-right-black bg-light-subtle" style={{ verticalAlign: 'top', width: '36%' }}>
+                          <div className="fw-bold text-decoration-underline small mb-2 d-flex align-items-center justify-content-between">
+                            <span>Bank &amp; GST Details</span>
+                            <div className="d-flex align-items-center gap-1">
+                              {bankSaveStatus === 'saving' && (
+                                <span className="badge bg-warning text-dark border py-1 px-2" style={{ fontSize: '7pt' }}>
+                                  <span className="spinner-border spinner-border-sm me-1" style={{ width: '8px', height: '8px' }}></span>Saving...
+                                </span>
+                              )}
+                              {bankSaveStatus === 'saved' && (
+                                <span className="badge bg-success border py-1 px-2 text-white" style={{ fontSize: '7pt' }}>
+                                  ✓ Saved
+                                </span>
+                              )}
+                              {isBankDetailsEditable ? (
+                                <button 
+                                  type="button" 
+                                  className="btn btn-sm btn-success py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-bold"
+                                  style={{ fontSize: '7.5pt' }}
+                                  onClick={handleSaveBankDetails}
+                                  title="Save GST and Bank Details"
+                                >
+                                  <i className="bi bi-floppy2"></i> Save
+                                </button>
+                              ) : (
+                                <button 
+                                  type="button" 
+                                  className="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-semibold"
+                                  style={{ fontSize: '7.5pt' }}
+                                  onClick={() => setIsBankDetailsEditable(true)}
+                                  title="Edit GST and Bank Details"
+                                >
+                                  <i className="bi bi-pencil-square"></i> Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1" style={{ fontSize: '8pt' }}>
+                            <div className="d-flex align-items-center">
+                              <span className="fw-bold text-muted" style={{ width: '60px' }}>GSTIN:</span>
+                              <input 
+                                type="text" 
+                                className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                                readOnly={!isBankDetailsEditable}
+                                value={companyGst} 
+                                onChange={e => setCompanyGst(e.target.value)} 
+                                placeholder="GSTIN Number" 
+                                style={{ fontSize: '8pt' }}
+                              />
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <span className="fw-bold text-muted" style={{ width: '60px' }}>Bank:</span>
+                              <input 
+                                type="text" 
+                                className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                                readOnly={!isBankDetailsEditable}
+                                value={bankName} 
+                                onChange={e => setBankName(e.target.value)} 
+                                placeholder="Bank Name" 
+                                style={{ fontSize: '8pt' }}
+                              />
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <span className="fw-bold text-muted" style={{ width: '60px' }}>A/c No:</span>
+                              <input 
+                                type="text" 
+                                className={`sheet-input fw-bold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                                readOnly={!isBankDetailsEditable}
+                                value={accountNumber} 
+                                onChange={e => setAccountNumber(e.target.value)} 
+                                placeholder="Account Number" 
+                                style={{ fontSize: '8pt' }}
+                              />
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <span className="fw-bold text-muted" style={{ width: '60px' }}>IFSC:</span>
+                              <input 
+                                type="text" 
+                                className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                                readOnly={!isBankDetailsEditable}
+                                value={ifscCode} 
+                                onChange={e => setIfscCode(e.target.value)} 
+                                placeholder="IFSC Code" 
+                                style={{ fontSize: '8pt' }}
+                              />
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <span className="fw-bold text-muted" style={{ width: '60px' }}>Branch:</span>
+                              <input 
+                                type="text" 
+                                className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
+                                readOnly={!isBankDetailsEditable}
+                                value={branchName} 
+                                onChange={e => setBranchName(e.target.value)} 
+                                placeholder="Branch Name" 
+                                style={{ fontSize: '8pt' }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td colSpan="2" className="p-3 text-end align-top" style={{ width: '28%', height: '100%' }}>
+                          <div className="d-flex flex-column justify-content-between h-100" style={{ minHeight: '130px' }}>
+                            <div className="fw-bold text-uppercase small text-nowrap">For {companyName}</div>
+                            <div className="small text-muted mt-auto pt-4 text-nowrap">Authorised Signatory</div>
+                          </div>
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
                     </>
                   ) : (
                     <>
+                      {/* Grand Totals Section for Estimate */}
+                      <tr className="footer-total-row border-top border-dark border-2">
+                        <td colSpan="2" className="text-end fw-bold py-2 border-right-black">Total</td>
+                        <td className="text-center fw-bold py-2 border-right-black">{totals.totalQty}</td>
+                        <td className="text-end fw-bold py-2 border-right-black">Sub total</td>
+                        <td className="text-end fw-bold py-2 font-monospace pe-3">₹{totals.subtotal.toFixed(2)}</td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
                       {/* Discount percentage input row */}
                       <tr>
                         <td colSpan="4" className="text-end fw-bold py-2 border-right-black">
@@ -1841,161 +2136,45 @@ const BillingSection = ({ products = [], settings = {}, loadData }) => {
                         <td className="text-end fw-bold py-2 font-monospace pe-3">₹{totals.discountedTotal.toFixed(2)}</td>
                         <td className="d-print-none"></td>
                       </tr>
+
+                      {/* Bill Total */}
+                      <tr className="border-bottom border-dark border-2">
+                        <td colSpan="4" className="text-end fw-bold py-2 border-right-black">Bill Total</td>
+                        <td className="text-end fw-bold py-2 font-monospace pe-3" style={{ fontSize: '11pt' }}>₹{totals.billTotal.toFixed(2)}</td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
+                      {/* Amount in words */}
+                      <tr className="border-bottom border-dark">
+                        <td colSpan="5" className="p-3 text-start">
+                          <div className="small fw-semibold text-uppercase text-muted mb-1">Amount Chargeable (in words):</div>
+                          <div className="fw-bold" style={{ fontSize: '9.5pt' }}>
+                            {numberToWords(totals.billTotal)}
+                          </div>
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
+
+                      {/* Declaration and Signature block for Estimate */}
+                      <tr>
+                        <td colSpan="3" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '55%' }}>
+                          <div className="d-flex justify-content-between align-items-baseline mb-1">
+                            <span className="fw-bold text-decoration-underline small">Declaration</span>
+                            <span className="small text-muted fst-italic fw-bold" style={{ fontSize: '7.5pt' }}>E. &amp; O.E</span>
+                          </div>
+                          <p className="m-0 text-muted" style={{ fontSize: '8pt', lineHeight: '1.4' }}>
+                            We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
+                          </p>
+                        </td>
+                        <td colSpan="2" className="p-3 text-end align-top" style={{ width: '45%', height: '100%' }}>
+                          <div className="d-flex flex-column justify-content-between h-100" style={{ minHeight: '100px' }}>
+                            <div className="fw-bold text-uppercase small text-nowrap">For {companyName}</div>
+                            <div className="small text-muted mt-auto pt-4 text-nowrap">Authorised Signatory</div>
+                          </div>
+                        </td>
+                        <td className="d-print-none"></td>
+                      </tr>
                     </>
-                  )}
-
-                  {/* Bill Total */}
-                  <tr className="border-bottom border-dark border-2">
-                    <td colSpan="4" className="text-end fw-bold py-2 border-right-black">Bill Total</td>
-                    <td className="text-end fw-bold py-2 font-monospace pe-3" style={{ fontSize: '11pt' }}>₹{totals.billTotal.toFixed(2)}</td>
-                    <td className="d-print-none"></td>
-                  </tr>
-
-                  {/* Amount in words */}
-                  <tr className="border-bottom border-dark">
-                    <td colSpan="5" className="p-3 text-start">
-                      <div className="small fw-semibold text-uppercase text-muted mb-1">Amount Chargeable (in words):</div>
-                      <div className="fw-bold" style={{ fontSize: '9.5pt' }}>
-                        {numberToWords(totals.billTotal)}
-                      </div>
-                      <div className="text-end w-100 small text-muted" style={{ marginTop: '-15px', fontStyle: 'italic' }}>E. & O.E</div>
-                    </td>
-                    <td className="d-print-none"></td>
-                  </tr>
-
-                  {/* Declaration and Signature block */}
-                  {docType === 'Invoice' ? (
-                    <tr>
-                      <td colSpan="2" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '38%' }}>
-                        <div className="fw-bold text-decoration-underline small mb-1">Declaration &amp; Disclaimer</div>
-                        <p className="m-0 text-muted mb-2" style={{ fontSize: '7.5pt', lineHeight: '1.35' }}>
-                          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-                        </p>
-                        <div className="text-muted" style={{ fontSize: '7pt', lineHeight: '1.3' }}>
-                          * All disputes subject to local jurisdiction.<br/>
-                          * Goods once sold will not be taken back or exchanged.
-                        </div>
-                      </td>
-                      <td colSpan="2" className="p-3 text-start border-right-black bg-light-subtle" style={{ verticalAlign: 'top', width: '37%' }}>
-                        <div className="fw-bold text-decoration-underline small mb-2 d-flex align-items-center justify-content-between">
-                          <span>Bank &amp; GST Details</span>
-                          <div className="d-flex align-items-center gap-1">
-                            {bankSaveStatus === 'saving' && (
-                              <span className="badge bg-warning text-dark border py-1 px-2" style={{ fontSize: '7pt' }}>
-                                <span className="spinner-border spinner-border-sm me-1" style={{ width: '8px', height: '8px' }}></span>Saving...
-                              </span>
-                            )}
-                            {bankSaveStatus === 'saved' && (
-                              <span className="badge bg-success border py-1 px-2 text-white" style={{ fontSize: '7pt' }}>
-                                ✓ Saved
-                              </span>
-                            )}
-                            {isBankDetailsEditable ? (
-                              <button 
-                                type="button" 
-                                className="btn btn-sm btn-success py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-bold"
-                                style={{ fontSize: '7.5pt' }}
-                                onClick={handleSaveBankDetails}
-                                title="Save GST and Bank Details"
-                              >
-                                <i className="bi bi-floppy2"></i> Save
-                              </button>
-                            ) : (
-                              <button 
-                                type="button" 
-                                className="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill shadow-xs d-flex align-items-center gap-1 fw-semibold"
-                                style={{ fontSize: '7.5pt' }}
-                                onClick={() => setIsBankDetailsEditable(true)}
-                                title="Edit GST and Bank Details"
-                              >
-                                <i className="bi bi-pencil-square"></i> Edit
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="d-flex flex-column gap-1" style={{ fontSize: '8pt' }}>
-                          <div className="d-flex align-items-center">
-                            <span className="fw-bold text-muted" style={{ width: '60px' }}>GSTIN:</span>
-                            <input 
-                              type="text" 
-                              className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
-                              readOnly={!isBankDetailsEditable}
-                              value={companyGst} 
-                              onChange={e => setCompanyGst(e.target.value)} 
-                              placeholder="GSTIN Number" 
-                              style={{ fontSize: '8pt' }}
-                            />
-                          </div>
-                          <div className="d-flex align-items-center">
-                            <span className="fw-bold text-muted" style={{ width: '60px' }}>Bank:</span>
-                            <input 
-                              type="text" 
-                              className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
-                              readOnly={!isBankDetailsEditable}
-                              value={bankName} 
-                              onChange={e => setBankName(e.target.value)} 
-                              placeholder="Bank Name" 
-                              style={{ fontSize: '8pt' }}
-                            />
-                          </div>
-                          <div className="d-flex align-items-center">
-                            <span className="fw-bold text-muted" style={{ width: '60px' }}>A/c No:</span>
-                            <input 
-                              type="text" 
-                              className={`sheet-input fw-bold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
-                              readOnly={!isBankDetailsEditable}
-                              value={accountNumber} 
-                              onChange={e => setAccountNumber(e.target.value)} 
-                              placeholder="Account Number" 
-                              style={{ fontSize: '8pt' }}
-                            />
-                          </div>
-                          <div className="d-flex align-items-center">
-                            <span className="fw-bold text-muted" style={{ width: '60px' }}>IFSC:</span>
-                            <input 
-                              type="text" 
-                              className={`sheet-input fw-semibold font-monospace py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
-                              readOnly={!isBankDetailsEditable}
-                              value={ifscCode} 
-                              onChange={e => setIfscCode(e.target.value)} 
-                              placeholder="IFSC Code" 
-                              style={{ fontSize: '8pt' }}
-                            />
-                          </div>
-                          <div className="d-flex align-items-center">
-                            <span className="fw-bold text-muted" style={{ width: '60px' }}>Branch:</span>
-                            <input 
-                              type="text" 
-                              className={`sheet-input py-0 px-1 ${isBankDetailsEditable ? 'border rounded bg-white' : ''}`}
-                              readOnly={!isBankDetailsEditable}
-                              value={branchName} 
-                              onChange={e => setBranchName(e.target.value)} 
-                              placeholder="Branch Name" 
-                              style={{ fontSize: '8pt' }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td colSpan="1" className="p-3 text-end d-flex flex-column justify-content-between" style={{ minHeight: '120px', width: '25%' }}>
-                        <div className="fw-bold text-uppercase small">For {companyName}</div>
-                        <div className="small text-muted mt-4">Authorised Signatory</div>
-                      </td>
-                      <td className="d-print-none"></td>
-                    </tr>
-                  ) : (
-                    <tr>
-                      <td colSpan="3" className="p-3 text-start border-right-black" style={{ verticalAlign: 'top', width: '55%' }}>
-                        <div className="fw-bold text-decoration-underline small mb-1">Declaration</div>
-                        <p className="m-0 text-muted" style={{ fontSize: '8pt', lineHeight: '1.4' }}>
-                          We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.
-                        </p>
-                      </td>
-                      <td colSpan="2" className="p-3 text-end d-flex flex-column justify-content-between" style={{ minHeight: '100px' }}>
-                        <div className="fw-bold text-uppercase small">For {companyName}</div>
-                        <div className="small text-muted mt-4">Authorised Signatory</div>
-                      </td>
-                      <td className="d-print-none"></td>
-                    </tr>
                   )}
                 </tbody>
               </table>

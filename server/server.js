@@ -97,6 +97,7 @@ const ProductSchema = new mongoose.Schema({
     name: String,
     category: String,
     content: String,
+    hsn: { type: String, default: '3604' },
     rate: Number,
     originalRate: Number,
     image: String,
@@ -865,7 +866,8 @@ app.delete('/api/admins/:username', async (req, res) => {
 
 app.get('/api/data', async (req, res) => {
     try {
-        const products = await Product.find();
+        const rawProducts = await Product.find().lean();
+        const products = rawProducts.map(p => ({ ...p, hsn: String(p.hsn || '3604').trim() }));
         const categories = await Category.find();
         const orders = await Order.find().sort({ date: -1 });
         const settingsList = await Setting.find();
@@ -914,6 +916,7 @@ app.post('/api/data', async (req, res) => {
                 doc.name = String(doc.name || '').trim();
                 doc.category = String(doc.category || '').trim();
                 doc.content = String(doc.content || '').trim();
+                doc.hsn = String(doc.hsn || '3604').trim();
                 doc.rate = Number.isFinite(Number(doc.rate)) ? Number(doc.rate) : 0;
                 doc.originalRate = Number.isFinite(Number(doc.originalRate)) ? Number(doc.originalRate) : 0;
                 doc.image = doc.image || '';

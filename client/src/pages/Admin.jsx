@@ -65,7 +65,7 @@ const Admin = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [newProduct, setNewProduct] = useState({ 
-    name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true 
+    name: '', category: '', content: '', hsn: '3604', rate: '', originalRate: '', image: '', active: true 
   });
   const [newCategory, setNewCategory] = useState({ name: '', image: '' });
 
@@ -125,6 +125,7 @@ const Admin = () => {
       name: '',
       category: categoryName || defaultCat,
       content: '',
+      hsn: '3604',
       rate: '',
       originalRate: '',
       image: '',
@@ -159,6 +160,7 @@ const Admin = () => {
       if (copy._id && (String(copy._id).startsWith('temp_') || !/^[0-9a-fA-F]{24}$/.test(String(copy._id)))) {
         delete copy._id;
       }
+      copy.hsn = (copy.hsn !== undefined && copy.hsn !== null && String(copy.hsn).trim() !== '') ? String(copy.hsn).trim() : '3604';
       return copy;
     });
   };
@@ -675,6 +677,7 @@ const Admin = () => {
         name: (newProduct.name || '').trim(),
         category: (newProduct.category || '').trim(),
         content: (newProduct.content || '').trim(),
+        hsn: (newProduct.hsn !== undefined && newProduct.hsn !== null && String(newProduct.hsn).trim() !== '') ? String(newProduct.hsn).trim() : '3604',
         rate: Number.isFinite(rate) ? rate : 0,
         originalRate: Number.isFinite(originalRate) ? originalRate : 0,
         image: newProduct.image || '',
@@ -711,7 +714,7 @@ const Admin = () => {
       await api.post('/data', { products: sanitizeProductsForApi(nextProducts) });
       setShowProductModal(false);
       setEditingProduct(null);
-      setNewProduct({ name: '', category: '', content: '', rate: '', originalRate: '', image: '', active: true });
+      setNewProduct({ name: '', category: '', content: '', hsn: '3604', rate: '', originalRate: '', image: '', active: true });
       loadData();
     } catch (err) {
       console.error("Failed to save product:", err);
@@ -725,6 +728,7 @@ const Admin = () => {
       name: p.name || '',
       category: p.category || '',
       content: p.content || '',
+      hsn: p.hsn !== undefined && p.hsn !== null ? String(p.hsn) : '3604',
       rate: p.rate ?? '',
       originalRate: p.originalRate ?? '',
       image: p.image || '',
@@ -940,7 +944,8 @@ const Admin = () => {
         '.totals-row td{border-top:2px solid #000;border-bottom:2px solid #000;font-weight:bold;padding:5px 6px;}' +
         '.amount-in-words-row td{padding:6px 10px;}' +
         '.declaration-box{padding:6px 8px;font-size:7.5pt;line-height:1.35;}' +
-        '.signatory-box{padding:6px 8px;display:flex;flex-direction:column;justify-content:space-between;text-align:right;}' +
+        '.signatory-box{padding:6px 10px;vertical-align:top;text-align:right;height:100%;}' +
+        '.signatory-inner{display:flex;flex-direction:column;justify-content:space-between;height:100%;min-height:95px;}' +
         '.footer-note{text-align:center;font-weight:bold;margin-top:8px;font-size:8pt;}' +
         '@media print{body{padding:0;background:transparent;}@page{size:A4 portrait;margin:8mm 10mm;}.d-print-none{display:none!important;}.sheet-container{width:100%;max-width:100%;}.bill-sheet{page-break-inside:avoid;break-inside:avoid;}}' +
         '.watermark-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:280px;height:280px;opacity:0.12;pointer-events:none;z-index:1;display:flex;align-items:center;justify-content:center;}' +
@@ -948,7 +953,10 @@ const Admin = () => {
         '</style></head><body>' +
         '<div class="watermark-container"><img src="' + logoBackgroundUrl + '" class="watermark-img" /></div>' +
         '<div class="sheet-container"><div class="bill-sheet">' +
-        '<div class="text-center border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size:10.5pt;padding:4px 0;">' + docTitleLabel + '</div>' +
+        '<div class="border-bottom-black py-1 fw-bold text-uppercase tracking-wider" style="font-size:10.5pt;padding:4px 12px;display:flex;align-items:center;justify-content:center;position:relative;">' +
+          '<span style="letter-spacing:1px;">' + docTitleLabel + '</span>' +
+          (isInvoice ? '<span style="position:absolute;right:12px;font-size:8pt;font-weight:normal;font-style:italic;text-transform:none;color:#111;">Original Copy</span>' : '') +
+        '</div>' +
         '<div class="row-flex align-items-center border-bottom-black"><div class="header-logo border-right-black"><div class="header-logo-box"><img src="' + logoUrl + '" class="logo-img" /></div></div>' +
         '<div class="header-details"><h1>' + companyNameText + '</h1><p>' + companyAddressText + '</p>' +
         '<div style="font-weight:bold;margin-top:3px;font-size:8.5pt;display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;">' +
@@ -958,74 +966,111 @@ const Admin = () => {
         '<div class="row-flex border-bottom-black" style="min-height:90px;"><div class="buyer-box border-right-black"><div class="box-title">Buyer</div>' +
         '<p style="font-weight:bold;font-size:9.5pt;margin-bottom:2px;">' + (order.customerName || 'In-Store Cash Customer') + '</p>' +
         '<p style="font-size:8.5pt;color:#222;line-height:1.35;white-space:pre-line;">' + (order.customerAddress || '') + '</p>' +
-        (order.customerPhone ? '<p style="font-size:8.5pt;margin-top:3px;font-weight:500;">Ph: ' + order.customerPhone + '</p>' : '') + '</div>' +
+        (order.customerPhone ? '<p style="font-size:8.5pt;margin-top:3px;font-weight:500;">Ph: ' + order.customerPhone + '</p>' : '') +
+        (order.customerEmail ? '<p style="font-size:8.5pt;margin-top:1px;color:#444;">Email: ' + order.customerEmail + '</p>' : '') + '</div>' +
         '<div class="meta-box"><div class="meta-row"><span class="meta-label">' + docNoLabel + '</span><span style="font-weight:bold;">: ' + docNo + '</span></div>' +
         '<div class="meta-row"><span class="meta-label">Dated</span><span>: ' + parsedDate + '</span></div></div></div>' +
-        '<table class="product-table" style="width:100%;border-collapse:collapse;"><thead><tr class="text-center">' +
-        '<th style="width:45px;">S.No</th><th>Products</th><th style="width:90px;">Qty</th><th style="width:110px;">Rate</th><th style="width:130px;">Amount</th></tr></thead><tbody>' +
-        items.map((item, idx) =>
-          '<tr><td class="text-center" style="font-weight:bold;color:#333;border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (idx+1) + '</td>' +
-          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"><div style="font-weight:bold;">' + (item.name || 'Product') + '</div>' +
-          (item.content ? '<div style="font-size:7.5pt;color:#555;font-style:italic;margin-top:1px;">' + item.content + (item.category ? ' (' + item.category + ')' : '') + '</div>' : '') + '</td>' +
-          '<td class="text-center" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.quantity || 0) + ' box</td>' +
-          '<td class="text-end font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">₹' + (item.originalRate || item.rate || 0).toFixed(2) + '</td>' +
-          '<td class="text-end font-monospace" style="font-weight:bold;border-bottom:1.5px solid #000;">₹' + ((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2) + '</td></tr>'
-        ).join('') +
+        '<table class="product-table" style="width:100%;border-collapse:collapse;"><thead>' +
+        (isInvoice ?
+          '<tr class="text-center">' +
+          '<th style="width:40px;">S.No</th><th>Description of Goods</th><th style="width:75px;">HSN Code</th><th style="width:75px;">Quantity</th><th style="width:85px;">Rate</th><th style="width:55px;">per</th><th style="width:105px;">Amount</th></tr>'
+        :
+          '<tr class="text-center">' +
+          '<th style="width:45px;">S.No</th><th>Products</th><th style="width:90px;">Qty</th><th style="width:110px;">Rate</th><th style="width:130px;">Amount</th></tr>'
+        ) +
+        '</thead><tbody>' +
+        (isInvoice ?
+          items.map((item, idx) =>
+            '<tr><td class="text-center" style="font-weight:bold;color:#333;border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (idx+1) + '</td>' +
+            '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"><div style="font-weight:bold;">' + (item.name || 'Product') + '</div>' +
+            (item.content ? '<div style="font-size:7.5pt;color:#555;font-style:italic;margin-top:1px;">' + item.content + (item.category ? ' (' + item.category + ')' : '') + '</div>' : '') + '</td>' +
+            '<td class="text-center font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.hsn || '3604') + '</td>' +
+            '<td class="text-center" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.quantity || 0) + ' ' + (item.unit || 'box') + '</td>' +
+            '<td class="text-end font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">₹' + (item.originalRate || item.rate || 0).toFixed(2) + '</td>' +
+            '<td class="text-center" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.unit || 'box') + '</td>' +
+            '<td class="text-end font-monospace" style="font-weight:bold;border-bottom:1.5px solid #000;">₹' + ((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2) + '</td></tr>'
+          ).join('')
+        :
+          items.map((item, idx) =>
+            '<tr><td class="text-center" style="font-weight:bold;color:#333;border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (idx+1) + '</td>' +
+            '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"><div style="font-weight:bold;">' + (item.name || 'Product') + '</div>' +
+            '<div style="font-size:7.5pt;color:#555;font-style:italic;margin-top:1px;">' + (item.content ? item.content : '') + (item.category ? ' (' + item.category + ')' : '') + ' <span style="font-family:monospace;font-size:7pt;color:#555;font-style:normal;margin-left:3px;">[HSN: ' + (item.hsn || '3604') + ']</span></div></td>' +
+            '<td class="text-center" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">' + (item.quantity || 0) + ' box</td>' +
+            '<td class="text-end font-monospace" style="border-right:2px solid #000;border-bottom:1.5px solid #000;">₹' + (item.originalRate || item.rate || 0).toFixed(2) + '</td>' +
+            '<td class="text-end font-monospace" style="font-weight:bold;border-bottom:1.5px solid #000;">₹' + ((item.originalRate || item.rate || 0) * (item.quantity || 0)).toFixed(2) + '</td></tr>'
+          ).join('')
+        ) +
         '</tbody>' +
         '<tbody style="page-break-inside:avoid;break-inside:avoid;">' +
-        '<tr class="totals-row" style="border-top:2px solid #000;">' +
-        '<td colSpan="2" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Total</td>' +
-        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:5px 6px;">' + totalQty + '</td>' +
-        '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Sub total</td>' +
-        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
         (isInvoice ?
-          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">CGST (' + cgstPercent + '%)</td>' +
+          '<tr style="border-top:2px solid #000;">' +
+          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
+          '<td colSpan="5" style="border-right:2px solid #000;border-bottom:1.5px solid #000;font-weight:bold;padding:4px 10px;text-align:right;white-space:nowrap;">CGST ' + cgstPercent + '%</td>' +
           '<td style="border-bottom:1.5px solid #000;text-align:right;color:#0d6efd;font-weight:bold;padding:4px 6px;" class="font-monospace">+₹' + cgstAmount.toFixed(2) + '</td></tr>' +
-          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">SGST (' + sgstPercent + '%)</td>' +
-          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#0d6efd;font-weight:bold;padding:4px 6px;" class="font-monospace">+₹' + sgstAmount.toFixed(2) + '</td></tr>'
-        :
-          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discount (' + discountPercent + '%)</td>' +
-          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#d9534f;font-weight:bold;padding:4px 6px;" class="font-monospace">-₹' + discountAmount.toFixed(2) + '</td></tr>' +
-          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discounted Total</td>' +
-          '<td style="border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;" class="font-monospace">₹' + (subtotal - discountAmount).toFixed(2) + '</td></tr>'
-        ) +
-        '<tr style="border-bottom:2px solid #000;"><td colSpan="4" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;">Bill Total</td>' +
-        '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;" class="font-monospace">₹' + finalBillTotal.toFixed(2) + '</td></tr>' +
-        '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:6px 10px;text-align:left;">' +
-        '<div style="font-size:7.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Amount Chargeable (in words):</div>' +
-        '<div style="font-weight:bold;font-size:8.5pt;">' + numberToWords(finalBillTotal) + '</div>' +
-        '<div style="text-align:right;font-size:7.5pt;color:#555;font-style:italic;margin-top:-8px;">E. &amp; O.E</div></td></tr>' +
-        (isInvoice ? 
-          '<tr style="height:90px;">' +
-          '<td colSpan="2" class="declaration-box" style="border-right:2px solid #000;padding:6px 8px;vertical-align:top;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;font-size:7.5pt;">Declaration &amp; Disclaimer</div>' +
+          '<tr>' +
+          '<td style="border-right:2px solid #000;border-bottom:1.5px solid #000;"></td>' +
+          '<td colSpan="5" style="border-right:2px solid #000;border-bottom:1.5px solid #000;font-weight:bold;padding:4px 10px;text-align:right;white-space:nowrap;">SGST ' + sgstPercent + '%</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#0d6efd;font-weight:bold;padding:4px 6px;" class="font-monospace">+₹' + sgstAmount.toFixed(2) + '</td></tr>' +
+          '<tr class="totals-row" style="border-top:2px solid #000;border-bottom:2px solid #000;">' +
+          '<td colSpan="3" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 10px;letter-spacing:0.5px;">Total</td>' +
+          '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:5px 6px;">' + totalQty + ' box</td>' +
+          '<td style="border-right:2px solid #000;border-bottom:2px solid #000;"></td>' +
+          '<td style="border-right:2px solid #000;border-bottom:2px solid #000;"></td>' +
+          '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;" class="font-monospace">₹' + finalBillTotal.toFixed(2) + '</td></tr>' +
+          '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="7" style="border-bottom:2px solid #000;padding:6px 10px;text-align:left;">' +
+          '<div style="font-size:7.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Amount Chargeable (in words):</div>' +
+          '<div style="font-weight:bold;font-size:8.5pt;">' + numberToWords(finalBillTotal) + '</div></td></tr>' +
+          '<tr style="min-height:95px;">' +
+          '<td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:6px 8px;vertical-align:top;text-align:left;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">' +
+              '<div style="font-weight:bold;text-decoration:underline;font-size:7.5pt;">Declaration &amp; Disclaimer</div>' +
+              '<div style="font-size:7pt;color:#555;font-style:italic;font-weight:bold;">E. &amp; O.E</div>' +
+            '</div>' +
             '<p style="font-size:6.5pt;line-height:1.3;color:#111;margin-bottom:2px;">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</p>' +
             '<div style="font-size:6pt;color:#444;line-height:1.25;">* All disputes subject to local jurisdiction.<br/>* Goods once sold will not be taken back or exchanged.</div>' +
           '</td>' +
           '<td colSpan="2" style="border-right:2px solid #000;padding:5px 8px;vertical-align:top;font-size:7.5pt;line-height:1.35;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;font-size:7.5pt;">Bank &amp; GST Details</div>' +
+            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:3px;font-size:7.5pt;">Bank &amp; GST Details</div>' +
             '<table style="width:100%;font-size:7.5pt;border-collapse:collapse;">' +
-              (companyGstText ? '<tr><td style="font-weight:bold;width:55px;padding:1px 0;">GSTIN</td><td>: <strong>' + companyGstText + '</strong></td></tr>' : '') +
-              (bankNameText ? '<tr><td style="font-weight:bold;width:55px;padding:1px 0;">Bank</td><td>: ' + bankNameText + '</td></tr>' : '') +
-              (accountNumberText ? '<tr><td style="font-weight:bold;padding:1px 0;">A/c No</td><td>: <strong>' + accountNumberText + '</strong></td></tr>' : '') +
-              (ifscCodeText ? '<tr><td style="font-weight:bold;padding:1px 0;">IFSC</td><td>: <strong>' + ifscCodeText + '</strong></td></tr>' : '') +
-              (branchNameText ? '<tr><td style="font-weight:bold;padding:1px 0;">Branch</td><td>: ' + branchNameText + '</td></tr>' : '') +
+              (companyGstText ? '<tr><td style="border:none;padding:1px 0;font-weight:bold;width:48px;white-space:nowrap;">GSTIN</td><td style="border:none;padding:1px 0;width:8px;text-align:center;">:</td><td style="border:none;padding:1px 0;font-family:monospace;white-space:nowrap;"><strong>' + companyGstText + '</strong></td></tr>' : '') +
+              (bankNameText ? '<tr><td style="border:none;padding:1px 0;font-weight:bold;width:48px;white-space:nowrap;">Bank</td><td style="border:none;padding:1px 0;width:8px;text-align:center;">:</td><td style="border:none;padding:1px 0;white-space:nowrap;">' + bankNameText + '</td></tr>' : '') +
+              (accountNumberText ? '<tr><td style="border:none;padding:1px 0;font-weight:bold;width:48px;white-space:nowrap;">A/c No</td><td style="border:none;padding:1px 0;width:8px;text-align:center;">:</td><td style="border:none;padding:1px 0;font-family:monospace;white-space:nowrap;"><strong>' + accountNumberText + '</strong></td></tr>' : '') +
+              (ifscCodeText ? '<tr><td style="border:none;padding:1px 0;font-weight:bold;width:48px;white-space:nowrap;">IFSC</td><td style="border:none;padding:1px 0;width:8px;text-align:center;">:</td><td style="border:none;padding:1px 0;font-family:monospace;white-space:nowrap;"><strong>' + ifscCodeText + '</strong></td></tr>' : '') +
+              (branchNameText ? '<tr><td style="border:none;padding:1px 0;font-weight:bold;width:48px;white-space:nowrap;">Branch</td><td style="border:none;padding:1px 0;width:8px;text-align:center;">:</td><td style="border:none;padding:1px 0;white-space:nowrap;">' + branchNameText + '</td></tr>' : '') +
             '</table>' +
           '</td>' +
-          '<td colSpan="1" class="signatory-box" style="padding:6px 8px;vertical-align:top;text-align:right;height:90px;">' +
-            '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
-              '<div style="font-weight:bold;text-transform:uppercase;font-size:7.5pt;">For ' + companyNameText + '</div>' +
-              '<div style="font-size:7pt;color:#444;margin-top:30px;">Authorised Signatory</div>' +
+          '<td colSpan="2" class="signatory-box" style="padding:6px 10px;vertical-align:top;text-align:right;height:100%;">' +
+            '<div class="signatory-inner">' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:7.5pt;white-space:nowrap;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:7pt;color:#444;margin-top:auto;padding-top:35px;white-space:nowrap;">Authorised Signatory</div>' +
             '</div>' +
           '</td></tr>'
-        : 
-          '<tr style="height:80px;">' +
+        :
+          '<tr class="totals-row" style="border-top:2px solid #000;">' +
+          '<td colSpan="2" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Total</td>' +
+          '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:center;font-weight:bold;padding:5px 6px;">' + totalQty + '</td>' +
+          '<td style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;">Sub total</td>' +
+          '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;padding:5px 6px;" class="font-monospace">₹' + subtotal.toFixed(2) + '</td></tr>' +
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discount (' + discountPercent + '%)</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;color:#d9534f;font-weight:bold;padding:4px 6px;" class="font-monospace">-₹' + discountAmount.toFixed(2) + '</td></tr>' +
+          '<tr><td colSpan="4" style="border-right:2px solid #000;border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;">Discounted Total</td>' +
+          '<td style="border-bottom:1.5px solid #000;text-align:right;font-weight:bold;padding:4px 6px;" class="font-monospace">₹' + (subtotal - discountAmount).toFixed(2) + '</td></tr>' +
+          '<tr style="border-bottom:2px solid #000;"><td colSpan="4" style="border-right:2px solid #000;border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;">Bill Total</td>' +
+          '<td style="border-bottom:2px solid #000;text-align:right;font-weight:bold;font-size:10pt;padding:5px 6px;" class="font-monospace">₹' + finalBillTotal.toFixed(2) + '</td></tr>' +
+          '<tr class="amount-in-words-row" style="border-bottom:2px solid #000;"><td colSpan="5" style="border-bottom:2px solid #000;padding:6px 10px;text-align:left;">' +
+          '<div style="font-size:7.5pt;color:#444;text-transform:uppercase;font-weight:bold;margin-bottom:2px;">Amount Chargeable (in words):</div>' +
+          '<div style="font-weight:bold;font-size:8.5pt;">' + numberToWords(finalBillTotal) + '</div></td></tr>' +
+          '<tr style="min-height:85px;">' +
           '<td colSpan="3" class="declaration-box" style="border-right:2px solid #000;padding:6px 8px;vertical-align:top;text-align:left;">' +
-            '<div style="font-weight:bold;text-decoration:underline;margin-bottom:2px;">Declaration</div><div style="font-size:7.5pt;line-height:1.3;">We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</div></td>' +
-          '<td colSpan="2" class="signatory-box" style="padding:6px 8px;vertical-align:top;text-align:right;height:80px;">' +
-            '<div style="display:flex;flex-direction:column;justify-content:space-between;height:100%;">' +
-              '<div style="font-weight:bold;text-transform:uppercase;font-size:8pt;">For ' + companyNameText + '</div>' +
-              '<div style="font-size:7.5pt;color:#444;margin-top:30px;">Authorised Signatory</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">' +
+              '<div style="font-weight:bold;text-decoration:underline;font-size:7.5pt;">Declaration</div>' +
+              '<div style="font-size:7pt;color:#555;font-style:italic;font-weight:bold;">E. &amp; O.E</div>' +
+            '</div>' +
+            '<div style="font-size:7.5pt;line-height:1.3;">We declare that this bill shows the actual price of the goods described and that all particulars are true and correct.</div></td>' +
+          '<td colSpan="2" class="signatory-box" style="padding:6px 10px;vertical-align:top;text-align:right;height:100%;">' +
+            '<div class="signatory-inner">' +
+              '<div style="font-weight:bold;text-transform:uppercase;font-size:8pt;white-space:nowrap;">For ' + companyNameText + '</div>' +
+              '<div style="font-size:7.5pt;color:#444;margin-top:auto;padding-top:30px;white-space:nowrap;">Authorised Signatory</div>' +
             '</div>' +
           '</td></tr>'
         ) +
@@ -1668,7 +1713,12 @@ const Admin = () => {
                                         />
                                       </td>
                                       <td>
-                                        <div className="fw-bold text-dark">{p.name}</div>
+                                        <div className="fw-bold text-dark d-flex align-items-center gap-2">
+                                          <span>{p.name}</span>
+                                          <span className="badge bg-light text-muted border font-monospace" style={{ fontSize: '0.65rem' }}>
+                                            HSN: {p.hsn || '3604'}
+                                          </span>
+                                        </div>
                                         <div className="small text-muted">{p.content}</div>
                                       </td>
                                       <td className="text-center">
@@ -2264,7 +2314,7 @@ const Admin = () => {
                            value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
                   </div>
                   <div className="row g-3">
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Category</label>
                       <select className="form-select rounded-4 bg-white-tertiary border-0 py-2" required
                               value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>
@@ -2275,10 +2325,15 @@ const Admin = () => {
                         })}
                       </select>
                     </div>
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Content (e.g. 10 Pcs)</label>
                       <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2" required
                              value={newProduct.content} onChange={e => setNewProduct({...newProduct, content: e.target.value})} />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>HSN Code</label>
+                      <input type="text" className="form-control rounded-4 bg-white-tertiary border-0 py-2 font-monospace" placeholder="e.g. 3604"
+                             value={newProduct.hsn !== undefined ? newProduct.hsn : '3604'} onChange={e => setNewProduct({...newProduct, hsn: e.target.value})} />
                     </div>
                     <div className="col-md-6">
                       <label className="form-label small fw-bold text-uppercase" style={{fontSize:'0.7rem'}}>Offer Rate (₹)</label>
